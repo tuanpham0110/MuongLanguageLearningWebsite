@@ -2294,3 +2294,448 @@ a.user-menu__item {
         padding: 0 var(--s-4) var(--s-4);
     }
 }
+
+/* ───────────── Exercise image ───────────── */
+.stage__image {
+    display: block;
+    width: 100%;
+    max-width: 360px;
+    max-height: 240px;
+    margin: 0 auto var(--s-4);
+    border-radius: var(--r-md);
+    object-fit: contain;
+}
+.flip {
+    transform: rotate(180deg);
+}
+
+/* ───────────── Admin: content editor ───────────── */
+.cms .chips {
+    align-items: center;
+}
+.cms__dict {
+    margin-left: auto;
+}
+.cms-layout {
+    display: grid;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    gap: var(--s-5);
+    align-items: start;
+}
+.cms-tree {
+    position: sticky;
+    top: var(--s-4);
+    display: grid;
+    gap: var(--s-4);
+    max-height: calc(100vh - 32px);
+    padding: var(--s-4);
+    overflow: auto;
+}
+.cms-tree__stagehead {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+}
+.cms-tree__stagehead strong {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--text-sm);
+    color: var(--ink);
+}
+.cms-tree__code {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-sm);
+    background: var(--forest-700);
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+}
+.cms-tree__code--clay {
+    background: var(--clay-600);
+}
+.cms-tree__code--river {
+    background: var(--river-500);
+}
+.cms-tree ul {
+    display: grid;
+    gap: 2px;
+    margin: var(--s-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+.cms-tree li {
+    display: flex;
+    align-items: center;
+    border-radius: var(--r-sm);
+}
+.cms-tree li.is-on {
+    background: var(--leaf-100);
+}
+.cms-tree__lesson {
+    display: flex;
+    flex: 1;
+    gap: var(--s-2);
+    align-items: center;
+    min-width: 0;
+    padding: 6px var(--s-2);
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    color: var(--ink-2);
+    cursor: pointer;
+}
+.cms-tree__lesson span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cms-tree__lesson i {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--line-strong);
+}
+.cms-tree__lesson i.is-pub {
+    background: var(--success);
+}
+.cms-tree__move {
+    display: flex;
+    flex: none;
+}
+.cms-tree__move .icon-btn {
+    width: 26px;
+    height: 26px;
+}
+.cms-tree__add {
+    margin: 4px 0 0 var(--s-2);
+}
+.cms-lesson {
+    padding: var(--s-5) var(--s-6);
+}
+.cms-lesson__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-4);
+    justify-content: space-between;
+    padding-bottom: var(--s-4);
+    border-bottom: 1px solid var(--line);
+}
+.cms-lesson__head h2 {
+    margin: var(--s-2) 0 2px;
+    font-size: var(--text-lg);
+}
+.cms-goals {
+    margin: var(--s-2) 0 0;
+    padding-left: var(--s-5);
+    font-size: 13px;
+    color: var(--ink-2);
+}
+.cms-lesson__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: flex-start;
+}
+.cms-part {
+    padding: var(--s-4) 0;
+    border-bottom: 1px solid var(--line);
+}
+.cms-part:last-of-type {
+    border-bottom: 0;
+}
+.cms-part h3 {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    margin: 0 0 var(--s-3);
+    font-size: var(--text-base);
+}
+.cms-part h3 small {
+    font-weight: 400;
+    color: var(--muted);
+}
+.cms-items,
+.cms-entry-list {
+    display: grid;
+    gap: var(--s-2);
+    margin: 0 0 var(--s-3);
+    padding: 0;
+    list-style: none;
+}
+.cms-items li,
+.cms-entry-list li {
+    display: flex;
+    gap: var(--s-3);
+    align-items: center;
+    padding: var(--s-2) var(--s-3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+}
+.cms-entry-list {
+    padding: 0 var(--s-5) var(--s-5);
+}
+.cms-items__main {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+}
+.cms-items__main strong {
+    overflow-wrap: anywhere;
+    color: var(--ink);
+}
+.cms-items__main span {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+}
+.cms-items__main small {
+    font-size: 12px;
+    color: var(--muted);
+}
+.cms-items__tools {
+    display: flex;
+    flex: none;
+}
+.cms-items__tools .icon-btn {
+    width: 32px;
+    height: 32px;
+}
+.cms-items__tools .icon-btn:disabled {
+    opacity: 0.3;
+}
+.cms-part__add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+}
+.cms-part__reuse {
+    display: flex;
+    gap: var(--s-2);
+    align-items: center;
+    min-width: 0;
+}
+.cms-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-3) var(--s-4);
+    width: 100%;
+}
+.cms-form > .stage__error,
+.cms-form__note {
+    grid-column: 1 / -1;
+    margin: 0;
+}
+.cms-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+.cms-field--wide,
+.cms-media {
+    grid-column: 1 / -1;
+}
+.cms-field__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+.cms-field__hint {
+    font-size: 12px;
+    color: var(--muted);
+}
+.cms-field__error {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--danger);
+}
+.cms-input {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px var(--s-3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-sm);
+    background: var(--surface);
+    font: inherit;
+    font-size: var(--text-sm);
+    color: var(--ink);
+}
+textarea.cms-input {
+    resize: vertical;
+}
+.cms-input:focus {
+    border-color: var(--leaf-500);
+    outline: none;
+    box-shadow: 0 0 0 3px var(--leaf-100);
+}
+.cms-field.has-error .cms-input {
+    border-color: var(--danger);
+}
+.cms-input--sm {
+    min-height: 34px;
+    max-width: 280px;
+    padding: 4px var(--s-2);
+}
+.cms-media__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: center;
+}
+.cms-media__row .player {
+    flex: 1;
+    min-width: 180px;
+}
+.cms-media__thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--r-sm);
+    background: var(--paper);
+    object-fit: cover;
+}
+.cms-entries .adm-users__bar .cms-input {
+    max-width: 360px;
+}
+@media (max-width: 960px) {
+    .cms-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .cms-tree {
+        position: static;
+        max-height: none;
+    }
+}
+@media (max-width: 560px) {
+    .cms-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .cms-lesson {
+        padding: var(--s-4);
+    }
+    .cms-part__reuse {
+        flex-wrap: wrap;
+    }
+    .cms-entry-list {
+        padding: 0 var(--s-3) var(--s-3);
+    }
+}
+
+/* ───────────── Dictionary ───────────── */
+.dict__bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    align-items: center;
+    margin-bottom: var(--s-4);
+}
+.dict__search {
+    display: flex;
+    flex: 1;
+    gap: var(--s-2);
+    align-items: center;
+    min-width: 240px;
+    padding: 0 var(--s-4);
+    border: 2px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+}
+.dict__search:focus-within {
+    border-color: var(--leaf-500);
+    box-shadow: 0 0 0 3px var(--leaf-100);
+}
+.dict__search input {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--text-md);
+    color: var(--ink);
+    outline: none;
+}
+.dict__list {
+    display: grid;
+    gap: var(--s-3);
+    margin: var(--s-3) 0 var(--s-5);
+    padding: 0;
+    list-style: none;
+}
+.dict-entry {
+    display: grid;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-5);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+}
+.dict-entry__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.dict-entry__head > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-2);
+    align-items: baseline;
+}
+.dict-entry__word {
+    font-size: var(--text-lg);
+    color: var(--forest-950);
+}
+.dict-entry__pron {
+    font-size: var(--text-sm);
+    color: var(--muted);
+}
+.dict-entry__meaning {
+    margin: 0;
+    font-size: var(--text-md);
+    color: var(--ink);
+}
+.dict-entry__audio {
+    display: grid;
+    gap: 4px;
+    max-width: 420px;
+}
+.dict-entry__examples {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding: var(--s-2) var(--s-3);
+    border-left: 3px solid var(--leaf-200);
+    list-style: none;
+    font-size: var(--text-sm);
+}
+.dict-entry__examples small {
+    color: var(--muted);
+}
+.dict-entry__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px var(--s-3);
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+.dict-entry__note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-2);
+}
+.dict__search input:focus,
+.dict__search input:focus-visible {
+    outline: none;
+    box-shadow: none;
+}

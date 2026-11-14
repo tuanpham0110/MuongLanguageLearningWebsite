@@ -1,7 +1,9 @@
 import { SHADOW_GUIDANCE } from '../../src/modules/content/guidance.js';
 
 /**
- * Course content used by the mock server (src/services/server/).
+ * Starting course content: prisma/seed.js loads it into an EMPTY database only. After that the
+ * content lives in the database and is edited in Quản trị → Soạn bài; changing this file does not
+ * change a deployed site (reload it on purpose with SEED_CONTENT=replace npm run db:seed).
  *
  * The UI never imports exercise answers from here directly – it goes through
  * src/services/api.js, which strips answers before sending items to the page.

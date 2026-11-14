@@ -3,9 +3,14 @@
  * Same interface as the server adapter in LessonPlayer. Grading happens on the
  * backend (answers never reach the browser); nothing is stored.
  */
-import { content } from './api.js';
+import { cms, content } from './api.js';
 
-export function createTrialAdapter() {
+/** Admin preview of any lesson, drafts included: same flow as the trial, graded by the server, nothing stored. */
+export function createPreviewAdapter(lessonId) {
+    return createTrialAdapter({ load: () => cms.preview(lessonId), grade: (itemId, response) => cms.previewAnswer(lessonId, itemId, response) });
+}
+
+export function createTrialAdapter({ load = content.trial, grade = content.trialAnswer } = {}) {
     let lesson = null;
     let threshold = 80;
     const answers = {};
@@ -14,13 +19,13 @@ export function createTrialAdapter() {
     return {
         trial: true,
         async start() {
-            const data = await content.trial();
+            const data = await load();
             lesson = data;
             threshold = data.threshold;
             return data;
         },
         async answer(itemId, response) {
-            const r = await content.trialAnswer(itemId, response);
+            const r = await grade(itemId, response);
             if (!(itemId in answers)) answers[itemId] = r.correct;
             return r;
         },

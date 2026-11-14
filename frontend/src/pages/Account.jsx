@@ -241,6 +241,7 @@ function DangerCard({ me }) {
     const [value, setValue] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    const [revoking, setRevoking] = useState(false);
 
     useEffect(() => {
         if (!open) {
@@ -281,6 +282,30 @@ function DangerCard({ me }) {
                     </div>
                     <Button variant="light" iconLeft="logout" onClick={logout}>
                         Đăng xuất
+                    </Button>
+                </div>
+                <div className="acct-row">
+                    <div>
+                        <strong>Đăng xuất khỏi các thiết bị khác</strong>
+                        <span>Dùng khi bạn từng đăng nhập trên máy lạ hoặc làm mất điện thoại. Thiết bị này vẫn đăng nhập.</span>
+                    </div>
+                    <Button
+                        variant="light"
+                        iconLeft="lock"
+                        loading={revoking}
+                        onClick={async () => {
+                            setRevoking(true);
+                            try {
+                                await auth.revokeOtherSessions();
+                                toast('Đã đăng xuất khỏi tất cả thiết bị khác.');
+                            } catch (err) {
+                                toast(err.message, { tone: 'error' });
+                            } finally {
+                                setRevoking(false);
+                            }
+                        }}
+                    >
+                        Đăng xuất nơi khác
                     </Button>
                 </div>
                 <div className="acct-row">

@@ -259,8 +259,8 @@ function CardsTab() {
     const deck = useMemo(() => {
         if (!data) return [];
         const [saved, vocab] = data;
-        if (source === 'saved' && saved.length) return saved.map((n) => ({ id: n.id, word: n.text, meaning: n.meaning, topic: n.topic, savedId: n.id }));
-        return vocab.map((v) => ({ id: v.id, word: v.word, meaning: v.meaning, topic: v.topic }));
+        if (source === 'saved' && saved.length) return saved.map((n) => ({ id: n.id, word: n.text, meaning: n.meaning, topic: n.topic, savedId: n.id, audioUrl: n.audioUrl }));
+        return vocab.map((v) => ({ id: v.id, word: v.word, meaning: v.meaning, topic: v.topic, audioUrl: v.audioUrl }));
     }, [data, source]);
 
     if (error) return <ErrorState onRetry={reload} />;

@@ -11,6 +11,7 @@ import { DAY, dayKey } from '../../lib/time.js';
 import { requireAdmin, requireAuth } from '../../middleware/auth.js';
 import { supportService } from '../support/support.service.js';
 import { getContent } from '../content/content.service.js';
+import { cmsRoutes } from '../cms/cms.routes.js';
 import { itemLabel, lessonItemIds } from '../learning/rules.js';
 
 const userId = z.string().min(1).max(60);
@@ -18,6 +19,7 @@ const message = z.object({ body: z.string({ error: 'Vui lòng nhập nội dung.
 
 export const adminRoutes = Router();
 adminRoutes.use(requireAuth, requireAdmin);
+adminRoutes.use('/cms', cmsRoutes);
 
 adminRoutes.get(
     '/overview',

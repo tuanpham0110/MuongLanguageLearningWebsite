@@ -16,29 +16,32 @@ const timeOf = (ts) => new Date(ts).toLocaleTimeString('vi-VN', { hour: '2-digit
  * Message thread + composer shared by the learner's support page and the admin inbox.
  * `mine(m)` tells which side of the conversation the viewer is on.
  */
-export default function Conversation({ messages, mine, onSend, placeholder = 'Nhập tin nhắn…', empty, otherLabel }) {
+export default function Conversation({ messages, mine, onSend, placeholder = 'Nhập tin nhắn…', empty, otherLabel, suggestions = [] }) {
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
     const [error, setError] = useState('');
     const listRef = useRef(null);
+    const sendingRef = useRef(false);
 
     useEffect(() => {
         const el = listRef.current;
         if (el) el.scrollTop = el.scrollHeight;
     }, [messages.length]);
 
-    async function submit(e) {
+    async function submit(e, suggestedText) {
         e?.preventDefault();
-        const body = text.trim();
-        if (!body || sending) return;
+        const body = (suggestedText ?? text).trim();
+        if (!body || sendingRef.current) return;
+        sendingRef.current = true;
         setSending(true);
         setError('');
         try {
             await onSend(body);
-            setText('');
+            if (suggestedText === undefined) setText('');
         } catch (err) {
             setError(err.message || 'Không gửi được tin nhắn. Vui lòng thử lại.');
         } finally {
+            sendingRef.current = false;
             setSending(false);
         }
     }
@@ -47,7 +50,12 @@ export default function Conversation({ messages, mine, onSend, placeholder = 'Nh
     return (
         <div className="convo">
             <div className="convo__list" ref={listRef} aria-live="polite">
-                {messages.length === 0 && <div className="convo__empty">{empty}</div>}
+                {messages.length === 0 && <div className="convo__empty">
+                    {empty}
+                    {suggestions.length > 0 && <div className="support__topics">
+                        {suggestions.map((topic) => <button key={topic} type="button" disabled={sending} onClick={(e) => submit(e, topic)}>{topic}</button>)}
+                    </div>}
+                </div>}
                 {messages.map((m) => {
                     const day = startOfDay(m.at);
                     const showDay = day !== lastDay;
@@ -78,6 +86,7 @@ export default function Conversation({ messages, mine, onSend, placeholder = 'Nh
                     rows={2}
                     value={text}
                     maxLength={2000}
+                    disabled={sending}
                     placeholder={placeholder}
                     aria-label={placeholder}
                     onChange={(e) => setText(e.target.value)}

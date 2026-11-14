@@ -1,7 +1,13 @@
 /**
  * Seeds course content and the demo account.
  *   npm run db:seed
- * Content is replaced on every run (learner progress is kept).
+ *
+ * Course content is managed in the admin area (Quản trị → Soạn bài) and lives in the database.
+ * prisma/data/content.js is only the starting content: it is loaded when the database has no
+ * content yet. Every deploy runs this script, so it must never overwrite what admins edited.
+ *
+ * To throw away the database content and reload content.js (learner progress is kept):
+ *   SEED_CONTENT=replace npm run db:seed
  */
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
@@ -47,10 +53,16 @@ async function seedContent() {
         prisma.item.createMany({ data: items }),
         prisma.lessonItem.createMany({ data: links }),
         prisma.vocabulary.createMany({
-            data: VOCABULARY.map((v, i) => ({ id: v.id, word: v.word, meaning: v.meaning, topic: v.topic, note: v.note ?? null, lessonId: v.lessonId ?? null, position: i })),
+            data: VOCABULARY.map((v, i) => ({
+                id: v.id, word: v.word, meaning: v.meaning, topic: v.topic, note: v.note ?? null, lessonId: v.lessonId ?? null, position: i,
+                pronunciation: v.pronunciation ?? null, dialect: v.dialect ?? null, source: v.source ?? null, audioUrl: v.audioUrl ?? null,
+            })),
         }),
         prisma.sentence.createMany({
-            data: SENTENCES.map((s, i) => ({ id: s.id, text: s.text, meaning: s.meaning, topic: s.topic, lessonId: s.lessonId ?? null, position: i })),
+            data: SENTENCES.map((s, i) => ({
+                id: s.id, text: s.text, meaning: s.meaning, topic: s.topic, lessonId: s.lessonId ?? null, position: i,
+                note: s.note ?? null, dialect: s.dialect ?? null, source: s.source ?? null, audioUrl: s.audioUrl ?? null,
+            })),
         }),
         prisma.handbookArticle.createMany({
             data: HANDBOOK.map((a, i) => ({
@@ -80,7 +92,12 @@ async function seedDemoUser() {
 }
 
 try {
-    await seedContent();
+    const existing = await prisma.stage.count();
+    if (!existing) await seedContent();
+    else if (process.env.SEED_CONTENT === 'replace') {
+        console.warn('! SEED_CONTENT=replace: database content is replaced by prisma/data/content.js');
+        await seedContent();
+    } else console.log(`✓ Content: kept the ${existing} stages in the database (managed in Quản trị → Soạn bài)`);
     await seedDemoUser();
 } catch (e) {
     console.error(e);

@@ -50,4 +50,5 @@ authRoutes.post(
     authLimiter,
     ah(async (req, res) => res.json(await authService.changePassword(req.user.id, parse(schemas.changePassword, req.body))))
 );
+authRoutes.post('/sessions/revoke-others', requireAuth, authLimiter, ah(async (req, res) => res.json(await authService.revokeOtherSessions(req.user.id))));
 authRoutes.delete('/me', requireAuth, authLimiter, ah(async (req, res) => res.json(await authService.deleteAccount(req.user.id, parse(schemas.deleteAccount, req.body ?? {})))));

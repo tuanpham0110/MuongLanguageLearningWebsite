@@ -149,7 +149,7 @@ export default function Flashcards({ cards, onMark }) {
                     </span>
                 </span>
                 <div className="flash__audio">
-                    <AudioPlayer text={card.word} size="sm" label={`Nghe “${card.word}”`} />
+                    <AudioPlayer src={card.audioUrl || undefined} text={card.word} size="sm" label={`Nghe “${card.word}”`} />
                 </div>
             </div>
 

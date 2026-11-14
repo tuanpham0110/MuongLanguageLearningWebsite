@@ -122,15 +122,39 @@ model Vocabulary {
   note     String?
   lessonId Int?
   position Int
+  /// cách đọc / phiên âm, chỉ khi có nguồn
+  pronunciation String?
+  /// vùng / phương ngữ của cách nói này
+  dialect  String?
+  /// nguồn kiểm chứng (người bản địa, tài liệu…)
+  source   String?
+  audioUrl String?
 }
 
 model Sentence {
-  id       String @id
+  id       String  @id
   text     String
   meaning  String
   topic    String
   lessonId Int?
   position Int
+  note     String?
+  dialect  String?
+  source   String?
+  audioUrl String?
+}
+
+/// Images / recordings uploaded by admins, served at /api/media/:id.
+/// Kept in the database: the app runs on serverless functions without a persistent disk.
+model Media {
+  id        String   @id @default(cuid())
+  kind      String // image | audio
+  mime      String
+  name      String
+  size      Int
+  data      Bytes
+  createdBy String?
+  createdAt DateTime @default(now())
 }
 
 model HandbookArticle {

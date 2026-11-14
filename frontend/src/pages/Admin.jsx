@@ -4,15 +4,19 @@ import { Button, EmptyState, ErrorState, Skeleton, TextField } from '../componen
 import Icon from '../components/Icon.jsx';
 import Modal from '../components/Modal.jsx';
 import Conversation from '../components/Conversation.jsx';
+import ContentEditor from './admin/ContentEditor.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { admin } from '../services/api.js';
 import useAsync from '../hooks/useAsync.js';
+import usePolling from '../hooks/usePolling.js';
+import { mergeMessages, mergeThread } from '../utils/support.js';
 import { WEEKDAY, formatWhen } from '../utils/format.js';
 
 const TABS = [
     { key: 'overview', label: 'Tổng quan' },
-    { key: 'content', label: 'Nội dung' },
+    { key: 'cms', label: 'Soạn bài' },
+    { key: 'content', label: 'Thống kê nội dung' },
     { key: 'users', label: 'Người dùng' },
     { key: 'support', label: 'Hỗ trợ' },
 ];
@@ -164,9 +168,6 @@ function ContentStats() {
                     </ul>
                 )}
             </section>
-            <p className="muted small">
-                Nội dung bài học hiện được quản lý trong <code>backend/prisma/data/content.js</code> và nạp lại mỗi lần deploy.
-            </p>
         </>
     );
 }
@@ -333,43 +334,13 @@ function Users({ onMessage }) {
 
 /* ───────────── Support inbox ───────────── */
 function Inbox({ openId, onOpen }) {
-    const { data: threads, error, loading, reload } = useAsync(() => admin.threads(), []);
-    const [thread, setThread] = useState(null);
-    const [threadError, setThreadError] = useState('');
+    const { data: threads, error, loading, reload } = usePolling((signal) => admin.threads(signal), { interval: 5000 });
 
-    useEffect(() => {
-        const t = setInterval(() => document.visibilityState === 'visible' && reload(), 20000);
-        return () => clearInterval(t);
-    }, [reload]);
-
-    useEffect(() => {
-        if (!openId) return setThread(null);
-        let alive = true;
-        const load = () =>
-            admin
-                .thread(openId)
-                .then((t) => alive && (setThread(t), setThreadError('')))
-                .catch((e) => alive && setThreadError(e.message));
-        setThread(null);
-        load().then(reload);
-        const t = setInterval(() => document.visibilityState === 'visible' && load(), 20000);
-        return () => {
-            alive = false;
-            clearInterval(t);
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [openId]);
-
-    async function send(body) {
-        const m = await admin.reply(openId, body);
-        setThread((t) => ({ ...t, messages: [...t.messages, m] }));
-        reload();
-    }
-
-    if (error) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
+    if (error && !threads) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
     return (
         <div className={`adm-inbox ${openId ? 'has-open' : ''}`}>
             <section className="panel adm-inbox__list" aria-label="Các cuộc trò chuyện">
+                {error && <p className="convo__error" role="status">Chưa cập nhật được hộp thư. Đang tự kết nối lại…</p>}
                 {loading && !threads ? (
                     <div className="adm-users__loading">
                         {[0, 1, 2].map((i) => (
@@ -408,40 +379,54 @@ function Inbox({ openId, onOpen }) {
                     <EmptyState title="Chọn một cuộc trò chuyện" art="/assets/mascot-point.webp">
                         Tin nhắn chưa đọc được xếp lên đầu danh sách.
                     </EmptyState>
-                ) : threadError ? (
-                    <ErrorState>{threadError}</ErrorState>
-                ) : !thread ? (
-                    <div className="support__loading">
-                        <Skeleton h={48} r={14} w="60%" />
-                        <Skeleton h={48} r={14} w="45%" style={{ marginLeft: 'auto' }} />
-                    </div>
                 ) : (
-                    <>
-                        <header className="support__head">
-                            <button type="button" className="icon-btn adm-inbox__back" onClick={() => onOpen(null)} aria-label="Quay lại danh sách">
-                                <Icon name="arrow-left" size={18} />
-                            </button>
-                            <span className="avatar">{initials(thread.user.name)}</span>
-                            <div>
-                                <strong>{thread.user.name}</strong>
-                                <span>
-                                    {thread.user.email} · tham gia {dateOf(thread.user.createdAt)}
-                                </span>
-                            </div>
-                        </header>
-                        <Conversation
-                            messages={thread.messages}
-                            mine={(m) => m.fromAdmin}
-                            onSend={send}
-                            otherLabel={thread.user.name}
-                            placeholder="Nhập câu trả lời…"
-                            empty={<p>Chưa có tin nhắn nào. Bạn có thể nhắn trước cho người học này.</p>}
-                        />
-                    </>
+                    <InboxThread key={openId} userId={openId} onBack={() => onOpen(null)} onRefresh={reload} />
                 )}
             </section>
         </div>
     );
+}
+
+function InboxThread({ userId, onBack, onRefresh }) {
+    const { data: thread, error, reload, setData } = usePolling(async (signal) => {
+        const result = await admin.thread(userId, signal);
+        if (!signal.aborted && result.messages.some((m) => !m.fromAdmin && !m.read)) onRefresh();
+        return result;
+    }, { merge: mergeThread });
+
+    async function send(body) {
+        const message = await admin.reply(userId, body);
+        setData((t) => ({ ...t, messages: mergeMessages(t?.messages, [message]) }));
+        reload();
+        onRefresh();
+    }
+
+    if (error && !thread) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
+    if (!thread) return <div className="support__loading">
+        <Skeleton h={48} r={14} w="60%" />
+        <Skeleton h={48} r={14} w="45%" style={{ marginLeft: 'auto' }} />
+    </div>;
+    return <>
+        <header className="support__head">
+            <button type="button" className="icon-btn adm-inbox__back" onClick={onBack} aria-label="Quay lại danh sách">
+                <Icon name="arrow-left" size={18} />
+            </button>
+            <span className="avatar">{initials(thread.user.name)}</span>
+            <div>
+                <strong>{thread.user.name}</strong>
+                <span>{thread.user.email} · tham gia {dateOf(thread.user.createdAt)}</span>
+            </div>
+        </header>
+        {error && <p className="convo__error" role="status">Chưa cập nhật được tin nhắn. Đang tự kết nối lại…</p>}
+        <Conversation
+            messages={thread.messages}
+            mine={(m) => m.fromAdmin}
+            onSend={send}
+            otherLabel={thread.user.name}
+            placeholder="Nhập câu trả lời…"
+            empty={<p>Chưa có tin nhắn nào. Bạn có thể nhắn trước cho người học này.</p>}
+        />
+    </>;
 }
 
 export default function Admin() {
@@ -451,7 +436,6 @@ export default function Admin() {
 
     const tab = TABS.some((t) => t.key === params.get('tab')) ? params.get('tab') : 'overview';
     const go = (key, extra = {}) => setParams(key === 'overview' ? extra : { tab: key, ...extra });
-
     return (
         <div className="admin">
             <header className="page-head">
@@ -468,6 +452,7 @@ export default function Admin() {
                 </div>
             </header>
             {tab === 'overview' && <Overview onOpenSupport={() => go('support')} />}
+            {tab === 'cms' && <ContentEditor />}
             {tab === 'content' && <ContentStats />}
             {tab === 'users' && <Users onMessage={(id) => go('support', { user: id })} />}
             {tab === 'support' && <Inbox openId={params.get('user')} onOpen={(id) => go('support', id ? { user: id } : {})} />}

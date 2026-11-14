@@ -4,8 +4,8 @@ import { ms } from '../../lib/time.js';
 import { getContent } from '../content/content.service.js';
 
 function catalogEntries(C) {
-    const words = C.VOCABULARY.map((v) => ({ id: `word:${v.id}`, type: 'word', ref: v.id, text: v.word, meaning: v.meaning, topic: v.topic, lessonId: v.lessonId, note: v.note }));
-    const sentences = C.SENTENCES.map((s) => ({ id: `sentence:${s.id}`, type: 'sentence', ref: s.id, text: s.text, meaning: s.meaning, topic: s.topic, lessonId: s.lessonId }));
+    const words = C.VOCABULARY.map((v) => ({ id: `word:${v.id}`, type: 'word', ref: v.id, text: v.word, meaning: v.meaning, topic: v.topic, lessonId: v.lessonId, note: v.note, audioUrl: v.audioUrl ?? null }));
+    const sentences = C.SENTENCES.map((s) => ({ id: `sentence:${s.id}`, type: 'sentence', ref: s.id, text: s.text, meaning: s.meaning, topic: s.topic, lessonId: s.lessonId, audioUrl: s.audioUrl ?? null }));
     return [...words, ...sentences];
 }
 

@@ -300,6 +300,13 @@ export const auth = {
         return user;
     },
 
+    /** Signs out every other device; this one keeps working with a fresh token. */
+    async revokeOtherSessions() {
+        const { token, user } = await post('/auth/sessions/revoke-others');
+        patchSession({ token, user });
+        return user;
+    },
+
     async deleteAccount({ password, confirmEmail }) {
         await del('/auth/me', { password: password || undefined, confirmEmail: confirmEmail || undefined });
         clearSession();
@@ -331,6 +338,9 @@ export const learning = {
 };
 
 export const content = {
+    /** { total, items } – verified entries only; `approximate` marks matches found without tone marks. */
+    dictionary: ({ q = '', dir = 'all', limit = 30, offset = 0 } = {}, signal) =>
+        get(`/content/dictionary?${new URLSearchParams({ q, dir, limit, offset })}`, { auth: false, signal }),
     summary: () => get('/content/summary', { auth: false }),
     trial: () => get('/content/trial', { auth: false }),
     trialAnswer: (itemId, response) => post('/content/trial/answers', { itemId, response }, { auth: false }),
@@ -360,7 +370,8 @@ export const notebook = {
 /* ───────────── Support (learner ↔ admin messages) ───────────── */
 export const support = {
     /** [{ id, fromAdmin, body, at, read }] – opening it marks the admin's replies as read. */
-    thread: () => get('/me/support'),
+    thread: (signal) => get('/me/support', { signal }),
+    unread: (signal) => get('/me/support/unread', { signal }),
     send: (body) => post('/me/support', { body }),
 };
 
@@ -376,9 +387,38 @@ export const admin = {
     },
     setRole: (id, role) => patch(`/admin/users/${id}`, { role }),
     deleteUser: (id) => del(`/admin/users/${id}`),
-    threads: () => get('/admin/support'),
-    thread: (userId) => get(`/admin/support/${userId}`),
+    threads: (signal) => get('/admin/support', { signal }),
+    thread: (userId, signal) => get(`/admin/support/${userId}`, { signal }),
     reply: (userId, body) => post(`/admin/support/${userId}`, { body }),
+};
+
+/* ───────────── Content management (admin) ───────────── */
+const CMS = '/admin/cms';
+export const cms = {
+    all: () => get(CMS),
+    createStage: (b) => post(`${CMS}/stages`, b),
+    updateStage: (id, b) => patch(`${CMS}/stages/${id}`, b),
+    deleteStage: (id) => del(`${CMS}/stages/${id}`),
+    createLesson: (b) => post(`${CMS}/lessons`, b),
+    updateLesson: (id, b) => patch(`${CMS}/lessons/${id}`, b),
+    moveLesson: (id, dir) => post(`${CMS}/lessons/${id}/move`, { dir }),
+    publishLesson: (id, published) => post(`${CMS}/lessons/${id}/publish`, { published }),
+    setLessonItems: (id, parts) => put(`${CMS}/lessons/${id}/items`, parts),
+    deleteLesson: (id) => del(`${CMS}/lessons/${id}`),
+    createItem: (b) => post(`${CMS}/items`, b),
+    updateItem: (id, b) => put(`${CMS}/items/${encodeURIComponent(id)}`, b),
+    deleteItem: (id) => del(`${CMS}/items/${encodeURIComponent(id)}`),
+    saveEntry: (kind, id, b) => (id ? put(`${CMS}/${kind}/${encodeURIComponent(id)}`, b) : post(`${CMS}/${kind}`, b)),
+    deleteEntry: (kind, id) => del(`${CMS}/${kind}/${encodeURIComponent(id)}`),
+    media: () => get(`${CMS}/media`),
+    upload: (file) => {
+        const form = new FormData();
+        form.append('file', file);
+        return request('POST', `${CMS}/media`, { form, timeout: 60000 });
+    },
+    deleteMedia: (id) => del(`${CMS}/media/${id}`),
+    preview: (id) => get(`${CMS}/lessons/${id}/preview`),
+    previewAnswer: (id, itemId, response) => post(`${CMS}/lessons/${id}/preview/answers`, { itemId, response }),
 };
 
 /* ───────────── Server capabilities ───────────── */

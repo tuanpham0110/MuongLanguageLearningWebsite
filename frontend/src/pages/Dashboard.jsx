@@ -157,7 +157,14 @@ function TodayCard({ stats, onGoal }) {
 function ProgressStrip({ stats, data }) {
     const xp = stats.xp;
     const tiles = [
-        { icon: 'sparkle', value: xp.total, label: 'XP', sub: `+${xp.today} hôm nay`, tone: 'clay' },
+        {
+            icon: 'sparkle',
+            value: xp.level ? `Cấp ${xp.level.level}` : xp.total,
+            label: xp.level ? `${xp.total} XP · +${xp.today} hôm nay` : 'XP',
+            sub: xp.level ? `Còn ${xp.level.next - xp.total} XP lên cấp ${xp.level.level + 1}` : `+${xp.today} hôm nay`,
+            progress: xp.level?.progress,
+            tone: 'clay',
+        },
         { icon: 'flame', value: stats.streak, label: 'ngày liên tiếp', sub: `Dài nhất: ${stats.longestStreak} ngày` },
         { icon: 'target', value: stats.accuracy == null ? '—' : `${stats.accuracy}%`, label: 'đúng ngay lần đầu', sub: 'Nghe và ghép câu', tone: 'river' },
         { icon: 'clock', value: stats.minutes, label: 'phút học', sub: `${data.completed}/${data.total} bài hoàn thành` },
@@ -174,6 +181,7 @@ function ProgressStrip({ stats, data }) {
                             <strong>{t.value}</strong>
                             <span>{t.label}</span>
                             <small>{t.sub}</small>
+                            {t.progress != null && <Progress value={t.progress} tone="clay" label="Tiến độ lên cấp" />}
                         </div>
                     </li>
                 ))}

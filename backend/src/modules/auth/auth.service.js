@@ -281,6 +281,21 @@ export const authService = {
         return session({ ...user, passwordHash, passwordSet: true, passwordChangedAt }, true);
     },
 
+    /**
+     * Signs out every other device: tokens are bound to the credential version (see jwt.js), so moving
+     * passwordChangedAt invalidates all of them at once. This device gets a fresh token.
+     */
+    async revokeOtherSessions(userId) {
+        const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+        const passwordChangedAt = new Date();
+        const moved = await prisma.user.updateMany({
+            where: { id: userId, passwordHash: user.passwordHash, passwordChangedAt: user.passwordChangedAt },
+            data: { passwordChangedAt },
+        });
+        if (!moved.count) throw badRequest('Thông tin đăng nhập vừa thay đổi. Vui lòng đăng nhập lại.', { code: 'password-changed' });
+        return session({ ...user, passwordChangedAt }, true);
+    },
+
     /** Permanently deletes the account and everything the learner stored (cascades in the schema). */
     async deleteAccount(userId, { password, confirmEmail }) {
         const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });

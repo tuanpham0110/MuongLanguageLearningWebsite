@@ -55,7 +55,8 @@ export function hookHarness(file, mocks = {}, globals = {}) {
     return {
         render(props, exportName = 'default') {
             cursor = 0;
-            const result = mod.exports[exportName](props);
+            const component = typeof exportName === 'function' ? exportName : mod.exports[exportName];
+            const result = component(props);
             while (effects.length) effects.shift()();
             return result;
         },

@@ -6,7 +6,7 @@ import Modal from '../components/Modal.jsx';
 import ExerciseStage from '../components/learn/ExerciseStage.jsx';
 import ChatBox, { openChat } from '../components/ChatBox.jsx';
 import { learning, notebook } from '../services/api.js';
-import { createTrialAdapter } from '../services/trial.js';
+import { createPreviewAdapter, createTrialAdapter } from '../services/trial.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { answerFeedback } from '../utils/learning.js';
@@ -155,7 +155,7 @@ function StageTransition({ t }) {
 }
 
 /* ───────────── Result ───────────── */
-function Result({ result, trial, onRetry, lessonId }) {
+function Result({ result, trial, onRetry, lessonId, exitTo }) {
     const { parts, score, passed, threshold } = result;
     const rows = [
         { icon: 'headphones', label: 'Bắc âm cầu', value: `${parts.listen.correct}/${parts.listen.total} đúng`, ok: parts.listen.correct === parts.listen.total },
@@ -237,9 +237,15 @@ function Result({ result, trial, onRetry, lessonId }) {
                         <Button variant="light" iconLeft="refresh" onClick={onRetry}>
                             Học thử lại
                         </Button>
-                        <Button to="/dang-ky" iconRight="arrow-right">
-                            Đăng ký để lưu tiến độ
-                        </Button>
+                        {exitTo ? (
+                            <Button to={exitTo} iconRight="arrow-right">
+                                Về trang soạn bài
+                            </Button>
+                        ) : (
+                            <Button to="/dang-ky" iconRight="arrow-right">
+                                Đăng ký để lưu tiến độ
+                            </Button>
+                        )}
                     </>
                 ) : (
                     <>
@@ -266,12 +272,17 @@ function Result({ result, trial, onRetry, lessonId }) {
 }
 
 /* ───────────── Player ───────────── */
-export default function LessonPlayer({ trial = false }) {
+export default function LessonPlayer({ trial: isTrial = false, preview = false }) {
     const { lessonId } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
     const { user } = useAuth();
-    const adapter = useMemo(() => (trial ? createTrialAdapter() : serverAdapter(lessonId)), [trial, lessonId]);
+    // an admin preview behaves like the trial: graded by the server, nothing is stored
+    const trial = isTrial || preview;
+    const adapter = useMemo(
+        () => (preview ? createPreviewAdapter(lessonId) : isTrial ? createTrialAdapter() : serverAdapter(lessonId)),
+        [preview, isTrial, lessonId]
+    );
 
     const [state, setState] = useState({ loading: true, error: null, data: null });
     const [step, setStep] = useState(0);
@@ -285,7 +296,7 @@ export default function LessonPlayer({ trial = false }) {
     const [confirmExit, setConfirmExit] = useState(false);
     const [nonce, setNonce] = useState(0);
 
-    const backTo = trial ? '/' : `/bai-hoc/${lessonId}`;
+    const backTo = preview ? `/quan-tri?tab=cms&lesson=${lessonId}` : trial ? '/' : `/bai-hoc/${lessonId}`;
 
     useEffect(() => {
         let alive = true;
@@ -433,7 +444,7 @@ export default function LessonPlayer({ trial = false }) {
                 {/* Rail */}
                 <aside className="rail" aria-label="Các phần của bài học">
                     <button className="rail__back" onClick={exit}>
-                        <Icon name="arrow-left" size={16} /> {trial ? 'Về trang chủ' : 'Quay lại bài học'}
+                        <Icon name="arrow-left" size={16} /> {preview ? 'Về trang soạn bài' : trial ? 'Về trang chủ' : 'Quay lại bài học'}
                     </button>
                     <div className="rail__lesson">
                         <img src="/assets/lesson-greeting.webp" alt="" />
@@ -567,9 +578,18 @@ export default function LessonPlayer({ trial = false }) {
                         />
                     )}
 
-                    {onResult && result && <Result result={result} trial={trial} lessonId={data.lesson.id} onRetry={retryLesson} />}
+                    {onResult && result && <Result result={result} trial={trial} lessonId={data.lesson.id} onRetry={retryLesson} exitTo={preview ? backTo : null} />}
 
-                    {trial && !user && step === 0 && (
+                    {preview && (
+                        <p className="trial-note">
+                            <Icon name="info" size={16} />
+                            <span>
+                                Xem trước{data.published === false ? ' bản nháp' : ''} – người học {data.published === false ? 'chưa thấy bài này' : 'đang thấy bài này'}. Kết quả không được lưu.
+                            </span>
+                        </p>
+                    )}
+
+                    {isTrial && !user && step === 0 && (
                         <p className="trial-note">
                             <Icon name="info" size={16} />
                             <span>
@@ -602,7 +622,9 @@ export default function LessonPlayer({ trial = false }) {
                 }
             >
                 <p className="modal__lead">
-                    {trial
+                    {preview
+                        ? 'Đây là bản xem trước, kết quả không được lưu.'
+                        : trial
                         ? 'Bạn đang học thử nên kết quả sẽ không được lưu.'
                         : `Bạn đã làm ${Object.keys(answers).length + Object.keys(ratings).length}/${total} câu. Tiến độ đã được lưu tự động – lần sau bạn có thể học tiếp đúng câu đang dừng.`}
                 </p>

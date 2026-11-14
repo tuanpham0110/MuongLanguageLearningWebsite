@@ -79,3 +79,9 @@ export async function getContent() {
 export function invalidateContent() {
     cache = null;
 }
+
+/** Content straight from the database (admin preview right after an edit, possibly on another instance). */
+export async function freshContent() {
+    invalidateContent();
+    return getContent();
+}

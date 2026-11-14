@@ -1,33 +1,26 @@
-import { useEffect, useState } from 'react';
 import { ErrorState, Skeleton } from '../components/ui.jsx';
 import Icon from '../components/Icon.jsx';
 import Conversation from '../components/Conversation.jsx';
 import { support } from '../services/api.js';
-import useAsync from '../hooks/useAsync.js';
+import usePolling from '../hooks/usePolling.js';
 import useMeta from '../hooks/useMeta.js';
+import { mergeMessages, SUPPORT_READ_EVENT } from '../utils/support.js';
 
 const TOPICS = ['Tôi không nghe được âm thanh trong bài học', 'Tôi muốn góp ý về nội dung bài học', 'Tôi gặp lỗi khi đăng nhập / tài khoản', 'Tôi muốn đề xuất tính năng mới'];
 
-/** Learner ↔ admin conversation. New replies are picked up every 20 seconds while the page is open. */
+/** Learner ↔ admin conversation, refreshed while visible. */
 export default function Support() {
     const meta = useMeta();
-    const { data, error, loading, reload } = useAsync(() => support.thread(), []);
-    const [messages, setMessages] = useState([]);
-
-    useEffect(() => {
-        if (data) setMessages(data);
-    }, [data]);
-
-    useEffect(() => {
-        const t = setInterval(() => {
-            if (document.visibilityState === 'visible') support.thread().then(setMessages).catch(() => {});
-        }, 20000);
-        return () => clearInterval(t);
-    }, []);
+    const { data: messages, error, loading, reload, setData } = usePolling(async (signal) => {
+        const result = await support.thread(signal);
+        if (!signal.aborted) window.dispatchEvent(new Event(SUPPORT_READ_EVENT));
+        return result;
+    }, { merge: mergeMessages });
 
     async function send(body) {
         const m = await support.send(body);
-        setMessages((list) => [...list, m]);
+        setData((list) => mergeMessages(list, [m]));
+        reload();
     }
 
     return (
@@ -50,31 +43,26 @@ export default function Support() {
                             <span>Thường trả lời trong vòng một ngày</span>
                         </div>
                     </header>
-                    {error ? (
+                    {error && messages && <p className="convo__error" role="status">Chưa cập nhật được tin nhắn. Đang tự kết nối lại…</p>}
+                    {error && !messages ? (
                         <ErrorState onRetry={reload}>{error.message}</ErrorState>
-                    ) : loading && !data ? (
+                    ) : loading && !messages ? (
                         <div className="support__loading">
                             <Skeleton h={48} r={14} w="60%" />
                             <Skeleton h={48} r={14} w="45%" style={{ marginLeft: 'auto' }} />
                         </div>
                     ) : (
                         <Conversation
-                            messages={messages}
+                            messages={messages ?? []}
                             mine={(m) => !m.fromAdmin}
                             onSend={send}
                             otherLabel="Quản trị viên"
                             placeholder="Nhập nội dung cần hỗ trợ…"
+                            suggestions={TOPICS}
                             empty={
                                 <>
                                     <img src="/assets/mascot-point.webp" alt="" />
                                     <p>Bạn chưa có tin nhắn nào. Hãy mô tả điều bạn cần – càng cụ thể càng dễ hỗ trợ.</p>
-                                    <div className="support__topics">
-                                        {TOPICS.map((t) => (
-                                            <button key={t} type="button" onClick={() => send(t)}>
-                                                {t}
-                                            </button>
-                                        ))}
-                                    </div>
                                 </>
                             }
                         />

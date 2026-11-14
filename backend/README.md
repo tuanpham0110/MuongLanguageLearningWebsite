@@ -10,7 +10,7 @@ backend/
 │   ├── schema.prisma        bảng dữ liệu
 │   ├── migrations/          lịch sử thay đổi CSDL
 │   ├── seed.js              nạp nội dung + tài khoản demo (npm run db:seed)
-│   └── data/content.js      nội dung khoá học (nguồn để seed)
+│   └── data/content.js      nội dung khởi tạo (chỉ nạp khi CSDL chưa có nội dung)
 ├── src/
 │   ├── server.js            khởi động, tắt an toàn
 │   ├── app.js               express app: bảo mật, CORS, route, xử lý lỗi
@@ -37,7 +37,7 @@ backend/
 | `npm run db:up` | bật PostgreSQL bằng Docker |
 | `npm run db:migrate` | tạo migration mới sau khi sửa `schema.prisma` |
 | `npm run db:deploy` | áp migration (production) |
-| `npm run db:seed` | nạp lại nội dung (giữ nguyên tiến độ người học) |
+| `npm run db:seed` | nạp nội dung khởi tạo khi CSDL trống + tài khoản demo. Nội dung đã có được giữ nguyên (soạn ở Quản trị → Soạn bài); `SEED_CONTENT=replace npm run db:seed` để nạp lại từ `content.js` |
 | `npm run db:studio` | xem / sửa dữ liệu trên giao diện web |
 | `npm test` | test end-to-end (tạo rồi xoá user tạm) |
 

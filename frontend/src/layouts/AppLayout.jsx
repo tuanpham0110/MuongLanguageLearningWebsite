@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { learning } from '../services/api.js';
+import { learning, support } from '../services/api.js';
 import Icon from '../components/Icon.jsx';
 import { Logo } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { NAV_GROUPS, NAV_ITEMS } from './nav.js';
 import ChatBox from '../components/ChatBox.jsx';
 import { resumeLabel } from '../utils/learning.js';
+import usePolling from '../hooks/usePolling.js';
+import { SUPPORT_READ_EVENT } from '../utils/support.js';
 
 function initials(name = '') {
     const parts = name.trim().split(/\s+/);
@@ -78,6 +80,11 @@ export default function AppLayout() {
     const [open, setOpen] = useState(false);
     const [info, setInfo] = useState(null);
     const location = useLocation();
+    const { data: supportUnread, reload: reloadUnread } = usePolling((signal) => support.unread(signal), { interval: 5000 });
+    useEffect(() => {
+        window.addEventListener(SUPPORT_READ_EVENT, reloadUnread);
+        return () => window.removeEventListener(SUPPORT_READ_EVENT, reloadUnread);
+    }, [reloadUnread]);
     useEffect(() => {
         setOpen(false);
         let alive = true;
@@ -91,7 +98,7 @@ export default function AppLayout() {
     }, [location.pathname]);
 
     const due = info?.review.due ?? 0;
-    const badges = { due, support: info?.support?.unread ?? 0 };
+    const badges = { due, support: supportUnread?.unread ?? info?.support?.unread ?? 0 };
     const badgeLabel = { due: 'câu đến hạn ôn', support: 'tin nhắn mới từ quản trị viên' };
     const today = info?.stats.today;
     const focus = info?.resume

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { ah, parse } from '../../lib/http.js';
 import { badRequest } from '../../lib/errors.js';
 import { PART_ORDER, getContent } from './content.service.js';
+import { searchDictionary } from './dictionary.js';
 import { gradeResponse, isGradable, lessonItemIds, publicItem, revealed } from '../learning/rules.js';
 
 export const contentRoutes = Router();
@@ -24,6 +25,23 @@ contentRoutes.get(
 );
 
 contentRoutes.get('/vocabulary', ah(async (_req, res) => res.json((await getContent()).VOCABULARY)));
+
+/** Mường ↔ Việt lookup over verified entries only (see dictionary.js). */
+contentRoutes.get(
+    '/dictionary',
+    ah(async (req, res) => {
+        const q = parse(
+            z.object({
+                q: z.string().max(100, 'Từ khoá tối đa 100 ký tự.').optional().default(''),
+                dir: z.enum(['all', 'mtq', 'vi']).optional().default('all'),
+                limit: z.coerce.number().int().min(1).max(50).optional().default(30),
+                offset: z.coerce.number().int().min(0).max(10_000).optional().default(0),
+            }),
+            req.query
+        );
+        res.json(searchDictionary(await getContent(), q));
+    })
+);
 
 contentRoutes.get(
     '/handbook',

@@ -175,6 +175,7 @@ export default function ExerciseStage({
             </header>
 
             <div className="stage__card">
+                {item.imageUrl && <img className="stage__image" src={item.imageUrl} alt="Hình minh hoạ cho câu hỏi" loading="lazy" />}
                 {item.part === 'listen' && (
                     <ListenExercise item={item} response={response} setResponse={setResponse} result={result} playerRef={playerRef} autoPlay={autoPlay && !result} />
                 )}

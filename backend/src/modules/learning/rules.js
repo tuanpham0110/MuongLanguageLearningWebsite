@@ -242,6 +242,14 @@ export function dayXp(day, goal) {
     return Math.min(XP.dailyCap, Math.max(0, day.correct) * XP.perCorrect) + (day.answered >= goal ? XP.goalMet : 0);
 }
 
+/** Level n starts at 50·n·(n−1) XP: 0, 100, 300, 600, 1000… – each level needs 100 XP more than the last. */
+export function levelOf(xp) {
+    const level = Math.max(1, Math.floor((1 + Math.sqrt(1 + (8 * Math.max(0, xp)) / 100)) / 2));
+    const start = 50 * level * (level - 1);
+    const next = 50 * (level + 1) * level;
+    return { level, xp, start, next, progress: Math.round(((xp - start) / (next - start)) * 100) };
+}
+
 export function xpOf(data) {
     const fromDays = Object.values(data.daily).reduce((n, d) => n + dayXp(d, data.goal), 0);
     const passed = Object.values(data.lessons).filter((l) => l.passed).length;

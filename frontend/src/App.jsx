@@ -19,6 +19,7 @@ import Practice from './pages/Practice.jsx';
 import LessonPlayer from './pages/LessonPlayer.jsx';
 import ReviewSession from './pages/ReviewSession.jsx';
 import Notebook from './pages/Notebook.jsx';
+import Dictionary from './pages/Dictionary.jsx';
 import Handbook from './pages/Handbook.jsx';
 import Account from './pages/Account.jsx';
 import History from './pages/History.jsx';
@@ -33,6 +34,12 @@ function ScrollToTop() {
         window.scrollTo(0, 0);
     }, [pathname]);
     return null;
+}
+
+/** UI guard only – every admin endpoint is checked on the server as well. */
+function AdminOnly({ children }) {
+    const { user } = useAuth();
+    return user?.role === 'admin' ? children : <Navigate to="/tong-quan" replace />;
 }
 
 function GuestOnly({ children }) {
@@ -59,6 +66,16 @@ export default function App() {
                     element={
                         <RequireAuth>
                             <LessonPlayer />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="quan-tri/xem-truoc/:lessonId"
+                    element={
+                        <RequireAuth>
+                            <AdminOnly>
+                                <LessonPlayer preview />
+                            </AdminOnly>
                         </RequireAuth>
                     }
                 />
@@ -97,6 +114,7 @@ export default function App() {
                     <Route path="bai-hoc/chang/:id" element={<Stage />} />
                     <Route path="bai-hoc/:lessonId" element={<Lesson />} />
                     <Route path="on-luyen" element={<Practice />} />
+                    <Route path="tu-dien" element={<Dictionary />} />
                     <Route path="so-tay" element={<Notebook />} />
                     <Route path="cam-nang" element={<Handbook />} />
                     <Route path="tai-khoan" element={<Account />} />
