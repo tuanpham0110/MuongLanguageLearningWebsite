@@ -114,3 +114,9 @@ Bản đang chạy dùng **Vercel (serverless) + Neon** – xem mục *Deploy* �
 Hạn chế hiện tại: giới hạn tần suất (rate limit) đếm trong bộ nhớ từng instance nên trên serverless chỉ mang tính tương đối
 (hạn mức AI/ngày thì lưu trong DB nên chính xác); đăng xuất chỉ xoá token ở trình duyệt (token bị thu hồi khi đổi mật khẩu);
 production chưa cấu hình SMTP thì email chưa được xác thực khi đăng ký.
+
+## Học liệu có nguồn
+
+`npm run db:seed` tự bổ sung một lần gói `sources-vtd2014-v1`: 7 bài đọc hiểu, 33 mục từ,
+2 câu mẫu và 72 câu bài tập tại chặng 2. Các lần seed/deploy sau giữ nguyên chỉnh sửa của admin.
+Nguồn, số trang, phạm vi thổ ngữ và cách nạp an toàn: [VERIFIED_SOURCES.md](prisma/data/VERIFIED_SOURCES.md).

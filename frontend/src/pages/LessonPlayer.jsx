@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Button, ErrorState, Ring, Skeleton } from '../components/ui.jsx';
 import Icon from '../components/Icon.jsx';
+import SourceCitation from '../components/SourceCitation.jsx';
 import Modal from '../components/Modal.jsx';
 import ExerciseStage from '../components/learn/ExerciseStage.jsx';
 import ChatBox, { openChat } from '../components/ChatBox.jsx';
@@ -51,6 +52,7 @@ function Intro({ data, steps, onStart, resumed }) {
                     </ul>
                 </div>
             )}
+            {data.lesson.references?.map((reference) => <SourceCitation key={reference.url} reference={reference} />)}
             <ol className="intro__parts">
                 {data.parts.map((p, i) => (
                     <li key={p.key}>

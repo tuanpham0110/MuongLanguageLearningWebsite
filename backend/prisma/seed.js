@@ -12,6 +12,7 @@
 import bcrypt from 'bcryptjs';
 import { PrismaClient } from '@prisma/client';
 import { HANDBOOK, ITEMS, SENTENCES, STAGES, VOCABULARY } from './data/content.js';
+import { installVerifiedContent } from './import-verified-content.js';
 
 const prisma = new PrismaClient();
 const PART_ORDER = ['listen', 'build', 'shadow'];
@@ -98,6 +99,8 @@ try {
         console.warn('! SEED_CONTENT=replace: database content is replaced by prisma/data/content.js');
         await seedContent();
     } else console.log(`✓ Content: kept the ${existing} stages in the database (managed in Quản trị → Soạn bài)`);
+    const added = await installVerifiedContent(prisma);
+    console.log(added.installed ? `✓ Verified content: ${added.lessons} lessons, ${added.words} words, ${added.sentences} sentences, ${added.exercises} exercises` : `✓ Verified content: ${added.pack} already installed; kept administrator edits`);
     await seedDemoUser();
 } catch (e) {
     console.error(e);

@@ -53,6 +53,13 @@ const common = {
     audioUrl: mediaUrl,
     imageUrl: mediaUrl,
     save,
+    reference: z.object({
+        title: text(200, 'tên nguồn'),
+        url: z.url().max(500).refine((url) => /^https:\/\//i.test(url), 'Liên kết nguồn phải dùng HTTPS.'),
+        locator: optional(200),
+        dialect: optional(120),
+        note: optional(400),
+    }).optional().nullable().transform((value) => value ?? undefined),
 };
 
 const answerInOptions = (v, ctx) => {

@@ -23,6 +23,7 @@ import { PART_ORDER, PARTS, freshContent, invalidateContent } from '../content/c
 import { gradeResponse, isGradable, lessonItemIds, publicItem, revealed } from '../learning/rules.js';
 import { PART_OF_KIND, itemInput, lessonInput, lessonItemsInput, sentenceInput, stageInput, toItemRow, vocabularyInput } from './schemas.js';
 import { mediaRoutes } from './media.routes.js';
+import { lessonReferences } from '../content/references.js';
 
 export const cmsRoutes = Router();
 cmsRoutes.use('/media', mediaRoutes);
@@ -364,7 +365,7 @@ cmsRoutes.get(
         const parts = PART_ORDER.map((p) => ({ ...C.PARTS[p], items: (lesson.parts?.[p] ?? []).map((iid) => publicItem(C, iid)).filter(Boolean) })).filter((p) => p.items.length);
         if (!parts.length) throw badRequest('Bài học chưa có câu bài tập nào để xem trước.', { code: 'lesson-empty' });
         res.json({
-            lesson: { id: lesson.id, title: lesson.title, minutes: lesson.minutes, goals: lesson.goals ?? [] },
+            lesson: { id: lesson.id, title: lesson.title, minutes: lesson.minutes, goals: lesson.goals ?? [], references: lessonReferences(C, lesson) },
             stage: { id: stage.id, title: stage.title, tone: stage.tone },
             parts,
             session: { step: 0, answers: {}, shadow: {} },

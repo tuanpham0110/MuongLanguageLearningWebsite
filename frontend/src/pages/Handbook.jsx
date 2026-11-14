@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Button, EmptyState, ErrorState, Skeleton, TextField } from '../components/ui.jsx';
 import Icon from '../components/Icon.jsx';
+import SourceCitation from '../components/SourceCitation.jsx';
 import SpeakButton from '../components/learn/SpeakButton.jsx';
 import { learning } from '../services/api.js';
 import useAsync from '../hooks/useAsync.js';
@@ -9,6 +10,7 @@ import useAsync from '../hooks/useAsync.js';
 const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').toLowerCase();
 
 function Block({ b, vocabulary, sentences }) {
+    if (b.references) return b.references.map((reference) => <SourceCitation key={reference.url} reference={reference} />);
     if (b.p) return <p>{b.p}</p>;
     if (b.h) return <h3>{b.h}</h3>;
     if (b.list)

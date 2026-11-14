@@ -28,6 +28,7 @@ import {
 } from './rules.js';
 import { addToReview, bumpDaily, loadState, toSession } from './state.js';
 import { supportService } from '../support/support.service.js';
+import { lessonReferences } from '../content/references.js';
 import { learnerTransaction } from './transaction.js';
 import { CONTENT_VERSION, assertSessionContent, contentVersion, reconcileAnswers, reconcileShadow, storedAnswers } from './session.js';
 
@@ -152,6 +153,7 @@ export const learningService = {
         return {
             ...dl,
             goals: lesson.goals ?? [],
+            references: lessonReferences(C, lesson),
             stage: { id: ds.id, title: ds.title, tone: ds.tone, code: ds.code },
             history: data.attempts.filter((a) => a.lessonId === lesson.id).slice(0, 5),
             threshold: C.PASS_THRESHOLD,
@@ -190,7 +192,7 @@ export const learningService = {
             // send back what was already answered so the player can restore feedback
             const answered = Object.fromEntries(Object.entries(session.answers).map(([itemId, a]) => [itemId, { ...a, ...revealed(C, itemId) }]));
             return {
-                lesson: { id: lesson.id, title: lesson.title, minutes: lesson.minutes, goals: lesson.goals ?? [] },
+                lesson: { id: lesson.id, title: lesson.title, minutes: lesson.minutes, goals: lesson.goals ?? [], references: lessonReferences(C, lesson) },
                 stage: { id: stage.id, title: stage.title, tone: stage.tone },
                 // seeded by the session: the order of the choices stays put if the learner leaves and resumes
                 parts: PART_ORDER.map((p) => ({ ...C.PARTS[p], items: (lesson.parts?.[p] ?? []).map((iid) => publicItem(C, iid, `${userId}:${session.startedAt}`)) })).filter(

@@ -2739,3 +2739,26 @@ textarea.cms-input {
     outline: none;
     box-shadow: none;
 }
+
+.source-citation {
+    padding: var(--s-4);
+    margin: var(--s-3) 0;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--leaf-500);
+    border-radius: 12px;
+    background: var(--paper-2);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.65;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+.source-citation p {
+    margin: 4px 0 0;
+    font-size: inherit;
+}
+.source-citation a {
+    color: var(--leaf-700);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}

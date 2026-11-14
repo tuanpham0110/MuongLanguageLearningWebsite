@@ -110,12 +110,13 @@ function toForm(it) {
         audioUrl: it?.audioUrl ?? '',
         imageUrl: it?.imageUrl ?? '',
         save: it?.save ? `${it.save.type}:${it.save.ref}` : '',
+        reference: it?.reference ?? null,
     };
 }
 
 function toPayload(f) {
     const save = f.save ? { type: f.save.split(':')[0], ref: f.save.slice(f.save.indexOf(':') + 1) } : null;
-    const common = { prompt: f.prompt, explain: f.explain, translation: f.translation, audioUrl: f.audioUrl, imageUrl: f.imageUrl, save };
+    const common = { prompt: f.prompt, explain: f.explain, translation: f.translation, audioUrl: f.audioUrl, imageUrl: f.imageUrl, save, reference: f.reference };
     switch (f.kind) {
         case 'shadow':
             return { kind: f.kind, text: f.text, meaning: f.meaning, tips: lines(f.tips), ...common };
@@ -276,6 +277,19 @@ function ItemForm({ open, item, part, lessonId, data, onClose, onSaved }) {
                         </optgroup>
                     </select>
                 </Field>
+                <div className="cms-field cms-field--wide">
+                    <span className="cms-field__label">Nguồn đối chiếu của câu bài tập</span>
+                    {v.reference ? <>
+                        {[
+                            ['title', 'Tên tác giả / tài liệu'], ['url', 'Liên kết HTTPS'],
+                            ['locator', 'Trang / mục'], ['dialect', 'Vùng / thổ ngữ'], ['note', 'Ghi chú phạm vi'],
+                        ].map(([key, label]) => <Field key={key} label={label} error={fieldError(`reference.${key}`)}>
+                            <input className="cms-input" value={v.reference[key] ?? ''} onChange={(e) => setV((s) => ({ ...s, reference: { ...s.reference, [key]: e.target.value } }))} />
+                        </Field>)}
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setV((s) => ({ ...s, reference: null }))}>Gỡ nguồn</Button>
+                    </> : <Button type="button" variant="light" size="sm" onClick={() => setV((s) => ({ ...s, reference: { title: '', url: '' } }))}>Thêm nguồn</Button>}
+                    <small className="cms-field__hint">Khi đổi từ/câu hoặc nghĩa, hãy đối chiếu lại và cập nhật nguồn tương ứng.</small>
+                </div>
                 <MediaField label="Bản thu âm" kind="audio" value={v.audioUrl} onChange={(url) => setV((s) => ({ ...s, audioUrl: url }))} />
                 <MediaField label="Hình minh hoạ" kind="image" value={v.imageUrl} onChange={(url) => setV((s) => ({ ...s, imageUrl: url }))} />
                 {fieldError('audioUrl') || fieldError('imageUrl') ? <small className="cms-field__error">{fieldError('audioUrl') || fieldError('imageUrl')}</small> : null}

@@ -1,5 +1,6 @@
 import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { verifiedLessons } from '../prisma/data/verified-content.js';
 
 // This suite replaces every database method it uses and never reads backend/.env.
 process.env.DATABASE_URL = 'postgresql://offline:offline@127.0.0.1:1/muonglab_test';
@@ -306,4 +307,29 @@ test('Unicode grading preserves tone differences and accepts canonical equivalen
     const item = ITEMS['l1-ep-em'];
     assert.equal(gradeResponse(item, `  ${item.answer.toUpperCase().normalize('NFD')}  `), true);
     assert.equal(gradeResponse(item, item.answer.normalize('NFD').replace(/[\u0300-\u036f]/g, '')), false);
+});
+
+test('sourced reading-only lesson unlocks after stage 1, carries attribution and can finish with 100%', async () => {
+    const group = verifiedLessons()[0];
+    const lessonId = 15;
+    content.lessons.push({ id: lessonId, stageId: 2, position: 5, title: group.title, minutes: group.minutes, published: true, goals: group.goals });
+    for (const [position, { id, part, kind, answer, explain, translation, ...data }] of group.items.entries()) {
+        content.items.push({ id, part, kind, answer, explain, translation, data });
+        content.links.push({ lessonId, itemId: id, part, position });
+    }
+    for (const id of [1, 2, 4, 5]) db.progress.set(id, { lessonId: id, best: 100, passed: true, attempts: 1 });
+    invalidateContent();
+    const start = await learningService.startLesson('learner', lessonId);
+    assert.deepEqual(start.parts.map((p) => p.key), ['build']);
+    assert.equal(start.lesson.references.length, 1);
+    assert.match(start.lesson.references[0].dialect, /không tách riêng/);
+    for (const item of group.items) {
+        const response = await learningService.answer('learner', lessonId, item.id, item.answer, start.contentVersion);
+        assert.equal(response.correct, true);
+    }
+    const finished = await learningService.finishLesson('learner', lessonId, start.contentVersion);
+    assert.equal(finished.score, 100);
+    assert.equal(finished.passed, true);
+    assert.equal(finished.parts.listen.total, 0);
+    assert.equal(finished.parts.build.total, group.items.length);
 });

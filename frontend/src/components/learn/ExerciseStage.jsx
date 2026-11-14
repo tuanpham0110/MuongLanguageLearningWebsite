@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../Icon.jsx';
+import SourceCitation from '../SourceCitation.jsx';
 import { Button } from '../ui.jsx';
 import { BuildExercise, ListenExercise, fromSubmission, toSubmission } from './Exercises.jsx';
 import ShadowExercise from './ShadowExercise.jsx';
@@ -186,6 +187,7 @@ export default function ExerciseStage({
             </div>
 
             {result && <Feedback result={result} mode={mode} showExplain={showExplain} saveState={saveState} onSave={item.save && onSave ? save : null} />}
+            {(result || rating) && <SourceCitation reference={item.reference} />}
             {isShadow && rating && (
                 <div className={`feedback ${rating === 'again' ? 'feedback--mid' : 'feedback--ok'}`} role="status">
                     <div className="feedback__row">

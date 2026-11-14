@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 import { Button, ErrorState, Skeleton } from '../components/ui.jsx';
 import Icon from '../components/Icon.jsx';
+import SourceCitation from '../components/SourceCitation.jsx';
 import { PARTS } from '../data/parts.js';
 import { learning } from '../services/api.js';
 import useAsync from '../hooks/useAsync.js';
@@ -88,6 +89,7 @@ export default function Lesson() {
                 <img src={l.status === 'done' ? '/assets/mascot-cheer.webp' : '/assets/mascot-book.webp'} alt="" className="lesson-hero__art" />
             </header>
 
+            {l.references?.map((reference) => <SourceCitation key={reference.url} reference={reference} />)}
             {l.counts && (
                 <section className="lesson-parts" aria-label="Cấu trúc bài học">
                     {Object.entries(l.counts).map(([key, n], i) => (
