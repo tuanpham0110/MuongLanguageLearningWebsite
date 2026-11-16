@@ -16,7 +16,7 @@ test('guidance uses configured pass threshold without changing language examples
 test('legacy shadowing guidance is corrected without reseeding user database', () => {
     const legacy = 'Bản ghi âm chỉ được lưu tạm trên trình duyệt của bạn để nghe lại, không được tải lên máy chủ. Hiện MUONGLAB chưa có công nghệ chấm điểm phát âm tự động cho tiếng Mường.';
     assert.equal(formatGuidance(legacy, 80), SHADOW_GUIDANCE);
-    assert.match(SHADOW_GUIDANCE, /ước lượng/);
+    assert.match(SHADOW_GUIDANCE, /không đánh giá phát âm/);
 });
 
 for (const admin of [false, true]) test(`support ${admin ? 'admin' : 'learner'} can read beyond 300 messages and only marks loaded IDs`, async () => {

@@ -17,7 +17,7 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
     process.env.NODE_ENV = 'test';
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
     process.env.JWT_SECRET = crypto.randomBytes(48).toString('hex');
-    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL', 'GOOGLE_CLIENT_ID', 'MICROSOFT_CLIENT_ID']) delete process.env[key];
+    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL', 'GOOGLE_CLIENT_ID', 'MICROSOFT_CLIENT_ID']) process.env[key] = '';
     const { prisma } = await import('../src/lib/prisma.js');
     const { learningService } = await import('../src/modules/learning/learning.service.js');
     const { reviewService } = await import('../src/modules/review/review.service.js');
@@ -64,6 +64,10 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
     });
 
     test('PostgreSQL: duplicate finish commits one attempt and one progress update', async () => {
+        await assert.rejects(learningService.finishLesson(userId, 1), { code: 'lesson-incomplete' });
+        assert.equal(await prisma.attempt.count({ where: { userId, lessonId: 1 } }), 0);
+        assert.equal(await prisma.lessonSession.count({ where: { userId, lessonId: 1 } }), 1);
+        await completePending();
         const results = await Promise.allSettled([learningService.finishLesson(userId, 1), learningService.finishLesson(userId, 1)]);
         assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
         assert.equal(results.find((r) => r.status === 'rejected').reason.status, 409);
@@ -73,7 +77,7 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
     });
 
     test('PostgreSQL: replayed review token schedules once; reopening supports early review', async () => {
-        // The unanswered build questions from the preceding finish are now due cards.
+        // The deliberately wrong build answers from the preceding attempt are now due cards.
         const [card] = await reviewService.queue(userId);
         assert.ok(card);
         const results = await Promise.allSettled([
@@ -90,20 +94,31 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
     });
 
     test('PostgreSQL: shadow edits keep stored practice total and result aligned', async () => {
+        const before = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
         await learningService.startLesson(userId, 1);
         await learningService.rateShadow(userId, 1, 'l1-sh-em', 'skip');
         await learningService.rateShadow(userId, 1, 'l1-sh-em', 'good');
         let user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-        assert.equal(user.shadowTotal, 1);
-        assert.equal(user.shadowPracticed, 1);
+        assert.equal(user.shadowTotal, before.shadowTotal + 1);
+        assert.equal(user.shadowPracticed, before.shadowPracticed + 1);
         await learningService.rateShadow(userId, 1, 'l1-sh-em', 'again');
         await learningService.rateShadow(userId, 1, 'l1-sh-em', 'again');
         assert.equal((await prisma.reviewCard.findUniqueOrThrow({ where: { userId_itemId: { userId, itemId: 'l1-sh-em' } } })).wrong, 1);
         await learningService.rateShadow(userId, 1, 'l1-sh-em', 'good');
+        await completePending();
         const result = await learningService.finishLesson(userId, 1);
         user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
         assert.equal(result.parts.shadow.practiced, user.shadowPracticed);
     });
+
+    async function completePending() {
+        const lesson = await prisma.lesson.findUniqueOrThrow({ where: { id: 1 }, include: { items: true } });
+        for (const link of lesson.items) {
+            const session = await prisma.lessonSession.findUniqueOrThrow({ where: { userId_lessonId: { userId, lessonId: 1 } } });
+            if (link.part === 'shadow' && !session.shadow[link.itemId]) await learningService.rateShadow(userId, 1, link.itemId, 'skip');
+            else if (link.part !== 'shadow' && !session.answers[link.itemId]) await learningService.answer(userId, 1, link.itemId, 'wrong');
+        }
+    }
 
     test('PostgreSQL: perfect badge survives the recent-history window', async () => {
         const now = Date.now();

@@ -26,7 +26,7 @@ import {
     statuses,
     streakOf,
 } from './rules.js';
-import { addToReview, bumpDaily, loadState, toSession } from './state.js';
+import { addToReview, bumpDaily, loadState, toSession, toAttempt } from './state.js';
 import { supportService } from '../support/support.service.js';
 import { lessonReferences } from '../content/references.js';
 import { learnerTransaction } from './transaction.js';
@@ -36,6 +36,15 @@ const PART_COUNTER = {
     listen: { correct: 'listenCorrect', total: 'listenTotal' },
     build: { correct: 'buildCorrect', total: 'buildTotal' },
 };
+
+// Called only while holding the learner lock, in the same transaction as progress.
+async function persistStageUnlocks(tx, userId, C, data) {
+    const unlocked = Object.entries(stageGates(C, data)).filter(([, open]) => open).map(([id]) => Number(id));
+    const saved = new Set(data.unlockedStages ?? []);
+    if (unlocked.every((id) => saved.has(id))) return;
+    data.unlockedStages = [...new Set([...saved, ...unlocked])];
+    await tx.user.update({ where: { id: userId }, data: { unlockedStages: data.unlockedStages } });
+}
 
 export const learningService = {
     async overview(userId) {
@@ -134,7 +143,7 @@ export const learningService = {
     },
 
     async stage(userId, id) {
-        const [C, data] = await Promise.all([getContent(), loadState(userId)]);
+        const [C, data] = await Promise.all([getContent(), loadState(userId, prisma, { journeyOnly: true })]);
         const stage = decorateStages(C, data).find((s) => s.id === Number(id));
         if (!stage) throw notFound('Không tìm thấy chặng học.');
         assertStageOpen(C, data, stage.id);
@@ -142,7 +151,7 @@ export const learningService = {
     },
 
     async lessonInfo(userId, id) {
-        const [C, data] = await Promise.all([getContent(), loadState(userId)]);
+        const [C, data] = await Promise.all([getContent(), loadState(userId, prisma, { journeyOnly: true })]);
         const { lesson, stage } = findLesson(C, id);
         assertStageOpen(C, data, stage.id);
         const stages = decorateStages(C, data);
@@ -155,7 +164,7 @@ export const learningService = {
             goals: lesson.goals ?? [],
             references: lessonReferences(C, lesson),
             stage: { id: ds.id, title: ds.title, tone: ds.tone, code: ds.code },
-            history: data.attempts.filter((a) => a.lessonId === lesson.id).slice(0, 5),
+            history: (await prisma.attempt.findMany({ where: { userId, lessonId: lesson.id }, orderBy: { createdAt: 'desc' }, take: 5 })).map(toAttempt),
             threshold: C.PASS_THRESHOLD,
             prevId: flat[idx - 1]?.id ?? null,
             nextId: flat[idx + 1]?.id ?? null,
@@ -167,10 +176,11 @@ export const learningService = {
         const C = await getContent();
         const { lesson, stage } = findLesson(C, id);
         return learnerTransaction(userId, async (tx) => {
-            const data = await loadState(userId, tx);
+            const data = await loadState(userId, tx, { journeyOnly: true });
             assertStageOpen(C, data, stage.id);
             const st = statuses(C, data)[lesson.id];
             if (st === 'soon' || st === 'locked') throw new HttpError(403, lockReason(C, data, lesson.id, st), { code: st });
+            await persistStageUnlocks(tx, userId, C, data);
 
             const row = await tx.lessonSession.upsert({
                 where: { userId_lessonId: { userId, lessonId: lesson.id } },
@@ -282,7 +292,7 @@ export const learningService = {
         const { lesson, stage } = findLesson(C, lessonId);
 
         return learnerTransaction(userId, async (tx) => {
-            const data = await loadState(userId, tx);
+            const data = await loadState(userId, tx, { journeyOnly: true });
             const s = data.sessions[lesson.id];
             if (!s) throw conflict('Không tìm thấy phiên học để chấm điểm.');
             assertStageOpen(C, data, stage.id);
@@ -290,6 +300,11 @@ export const learningService = {
             assertSessionContent(C, lesson, { [CONTENT_VERSION]: s.contentVersion }, expectedVersion);
             s.answers = reconcileAnswers(C, lesson, s.answers);
             s.shadow = reconcileShadow(C, lesson, s.shadow);
+            const ids = lessonItemIds(lesson);
+            if (!ids.length) throw conflict('Bài học chưa có bài tập để hoàn thành.', { code: 'lesson-empty' });
+            if (ids.some((id) => C.ITEMS[id]?.part === 'shadow' ? !s.shadow[id] : !s.answers[id])) {
+                throw conflict('Hãy trả lời đầy đủ các câu hỏi và xác nhận phần luyện nói trước khi kết thúc bài.', { code: 'lesson-incomplete' });
+            }
             const before = statuses(C, data);
             const gatesBefore = stageGates(C, data);
             const stageDoneBefore = stageComplete(data, stage);
@@ -309,11 +324,6 @@ export const learningService = {
             const now = Date.now();
 
             const wrongIds = lessonItemIds(lesson).filter((id) => (C.ITEMS[id].part === 'shadow' ? s.shadow[id]?.rating === 'again' : !s.answers[id]?.correct));
-            // unanswered gradable items count as wrong and go to the review queue
-            for (const id of wrongIds) {
-                if (C.ITEMS[id].part !== 'shadow' && !s.answers[id]) await addToReview(tx, userId, { itemId: id, part: C.ITEMS[id].part, lessonId: lesson.id });
-            }
-
             const durationSec = Math.min(1800, Math.round((now - s.startedAt) / 1000));
             const row = await tx.attempt.create({
                 data: { userId, lessonId: lesson.id, stageId: stage.id, title: lesson.title, score, passed, parts, durationSec, createdAt: new Date(now) },
@@ -330,6 +340,7 @@ export const learningService = {
             // recompute with the new result
             data.lessons[lesson.id] = rec;
             delete data.sessions[lesson.id];
+            await persistStageUnlocks(tx, userId, C, data);
             const after = statuses(C, data);
             const unlocked = Object.keys(after)
                 .filter((k) => before[k] === 'locked' && after[k] === 'current')
@@ -383,7 +394,7 @@ export const learningService = {
     },
 
     async history(userId) {
-        return (await loadState(userId)).attempts;
+        return (await prisma.attempt.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 })).map(toAttempt);
     },
 
     async setGoal(userId, goal) {

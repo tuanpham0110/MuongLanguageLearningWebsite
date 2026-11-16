@@ -25,7 +25,7 @@ process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
 process.env.JWT_SECRET = crypto.randomBytes(48).toString('hex');
 // Tests must never send real mail or call a configured AI / identity service.
-for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL', 'GOOGLE_CLIENT_ID', 'MICROSOFT_CLIENT_ID']) delete process.env[key];
+for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL', 'GOOGLE_CLIENT_ID', 'MICROSOFT_CLIENT_ID']) process.env[key] = '';
 const { createApp } = await import('../src/app.js');
 const { prisma } = await import('../src/lib/prisma.js');
 const { resetGoogleKeyCache, verifyGoogleIdToken } = await import('../src/lib/google.js');
@@ -435,12 +435,13 @@ describe('Microsoft ID token verification', () => {
     });
 });
 
-describe('pronunciation scoring (transcript vs model sentence)', () => {
-    test('an exact or near transcript scores high, syllable by syllable', () => {
+describe('experimental transcript agreement (not acoustic pronunciation)', () => {
+    test('exact syllables match; tone or consonant differences remain mismatches', () => {
         assert.equal(compare('mốch, hal, pa, pổn', 'mốch hal pa pổn').score, 100);
         const near = compare('mốch, hal, pa, pổn', 'mốc han pa pổn');
-        assert.ok(near.score >= 80 && near.score < 100, String(near.score));
-        assert.ok(near.words.every((w) => w.status === 'ok'));
+        assert.equal(near.score, 50);
+        assert.equal(near.words.find((w) => w.text === 'mốch').status, 'miss');
+        assert.equal(near.words.find((w) => w.text === 'hal').status, 'miss');
     });
     test('missing syllables are marked and cost points', () => {
         const r = compare('mốch, hal, pa, pổn', 'mốch hal');

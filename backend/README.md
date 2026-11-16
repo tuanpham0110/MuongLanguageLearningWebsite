@@ -58,7 +58,7 @@ Mọi lỗi trả về `{ message, code?, field? }`. Route `/api/me/*`, `/api/ai
 | --- | --- | --- |
 | GET | `/api/health` | trạng thái API + CSDL |
 | GET | `/api/meta` | tính năng nào đang bật `{ ai, aiModel, speech, mail, emailVerification, passwordReset, googleClientId }` |
-| POST | `/api/auth/register` | `{ name, email, password }` → gửi OTP. Khi không cần xác thực email (production chưa có SMTP) trả luôn `session: { token, user }` |
+| POST | `/api/auth/register` | `{ name, email, password }` → `{ email, purpose, verificationToken }`, gửi OTP; production thiếu SMTP trả 503, không tạo hay tự xác thực tài khoản |
 | POST | `/api/auth/login` | `{ email, password, remember }` → `{ token, user }` |
 | POST | `/api/auth/google` | `{ credential }` (ID token của Google Identity Services) → `{ token, user }`; tạo tài khoản ở lần đầu |
 | POST | `/api/auth/otp/verify` | `{ email, purpose: verify\|reset, code }` → verify: `{ token, user }` (đăng nhập luôn) · reset: `{ resetToken }` |
@@ -111,9 +111,11 @@ Bản đang chạy dùng **Vercel (serverless) + Neon** – xem mục *Deploy* �
 3. `npm ci && npm run db:deploy && npm run db:seed && npm start` (hoặc dùng pm2 / Docker).
 4. Frontend: đặt `VITE_API_URL=https://tên-miền-api/api` khi build.
 
-Hạn chế hiện tại: giới hạn tần suất (rate limit) đếm trong bộ nhớ từng instance nên trên serverless chỉ mang tính tương đối
-(hạn mức AI/ngày thì lưu trong DB nên chính xác); đăng xuất chỉ xoá token ở trình duyệt (token bị thu hồi khi đổi mật khẩu);
-production chưa cấu hình SMTP thì email chưa được xác thực khi đăng ký.
+Production dùng bộ đếm rate limit nguyên tử trong PostgreSQL, chia sẻ giữa các instance; không cho request đi tiếp nếu không kiểm tra được hạn mức. Development/test dùng bộ nhớ cục bộ. Hạn mức AI/ngày tiếp tục lưu trong DB. Đăng xuất chỉ xoá token ở trình duyệt; đổi mật khẩu hoặc thu hồi phiên sẽ vô hiệu hoá token cũ.
+
+Migration `20261116090000_access_and_rate_limits` bổ sung mốc mở chặng và bảng bộ đếm, không xoá dữ liệu hay đổi điểm đã lưu. Sao lưu DB và kiểm tra trên staging trước khi áp migration, rồi mới chạy ứng dụng mới. Rollback bằng cách khôi phục phiên bản ứng dụng trước và giữ hai phần schema bổ sung để bảo toàn mốc mở khoá. Migration chỉ khôi phục quyền cũ khi còn bằng chứng tiến độ/phiên học hoặc người học vẫn đủ điều kiện theo học liệu hiện tại.
+
+Test database phải là database riêng có tên kết thúc bằng `_test`, đã áp migration và nạp học liệu thử nghiệm. Đặt `RUN_DB_TESTS=true` cùng `TEST_DATABASE_URL` rồi chạy `npm test`. Các suite chỉ dọn fixture chúng tạo; không trỏ vào DB người dùng thật. Test AI/Speech dùng upstream mock và không chứng minh chất lượng ngôn ngữ hay nhận dạng âm thanh thực tế.
 
 ## Học liệu có nguồn
 

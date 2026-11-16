@@ -29,6 +29,8 @@ model User {
   verified     Boolean  @default(false)
   dailyGoal    Int      @default(10)
   reviewDone   Int      @default(0)
+  /// Earned stage access survives additions/reordering of earlier course content.
+  unlockedStages Int[] @default([])
 
   // first-try statistics per exercise part
   listenCorrect   Int @default(0)
@@ -262,6 +264,15 @@ model AiUsage {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, day])
+}
+
+/// Shared fixed-window rate counters. Keys are HMACs, never raw IPs or user IDs.
+model RequestRateLimit {
+  key     String   @id
+  hits    Int
+  resetAt DateTime
+
+  @@index([resetAt])
 }
 
 /// Support inbox: one conversation per learner (`userId`), answered by admins.

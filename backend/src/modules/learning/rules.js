@@ -96,10 +96,13 @@ export function stageComplete(data, stage) {
 }
 export function stageGates(C, data) {
     const map = {};
+    const earned = new Set(data.unlockedStages ?? []);
+    // Legacy learners may already have work in a stage before unlock persistence existed.
+    for (const s of C.STAGES) if (s.lessons.some((l) => data.sessions?.[l.id] || data.lessons[l.id]?.passed || data.lessons[l.id]?.attempts > 0)) earned.add(s.id);
     let open = true;
     for (const s of C.STAGES) {
-        map[s.id] = open;
-        open = open && stageComplete(data, s);
+        map[s.id] = open || earned.has(s.id);
+        open = map[s.id] && stageComplete(data, s);
     }
     return map;
 }
@@ -119,19 +122,21 @@ export function assertStageOpen(C, data, stageId) {
 export function statuses(C, data) {
     const map = {};
     const gates = stageGates(C, data);
-    let gateOpen = true;
-    for (const l of allLessons(C)) {
-        if (!l.published) {
-            map[l.id] = 'soon';
-            continue;
-        }
-        if (data.lessons[l.id]?.passed) map[l.id] = 'done';
-        else if (gateOpen && gates[l.stageId]) {
-            map[l.id] = 'current';
-            gateOpen = false;
-        } else {
-            map[l.id] = 'locked';
-            gateOpen = false;
+    for (const s of C.STAGES) {
+        let gateOpen = true;
+        for (const l of s.lessons) {
+            if (!l.published) {
+                map[l.id] = 'soon';
+                continue;
+            }
+            if (data.lessons[l.id]?.passed) map[l.id] = 'done';
+            else if (gates[s.id] && (gateOpen || data.sessions?.[l.id] || data.lessons[l.id]?.attempts > 0)) {
+                map[l.id] = 'current';
+                gateOpen = false;
+            } else {
+                map[l.id] = 'locked';
+                gateOpen = false;
+            }
         }
     }
     return map;

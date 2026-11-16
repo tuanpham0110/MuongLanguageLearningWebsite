@@ -66,12 +66,9 @@ export const env = {
     ...parsed.data,
     isProd,
     mailEnabled,
-    /**
-     * Email OTP is enforced whenever it can be delivered. In production without SMTP nobody could
-     * ever receive a code, so sign-up skips it (accounts stay "unverified" and are asked to verify
-     * once SMTP is configured). In dev the code is printed to the console instead.
-     */
-    verificationRequired: mailEnabled || !isProd,
+    // Delivery failures must never turn an unverified email into a trusted identity.
+    verificationRequired: true,
+    emailRegistrationEnabled: mailEnabled || !isProd,
     aiEnabled: Boolean(parsed.data.GEMINI_API_KEY),
     aiModels: [...new Set([parsed.data.GEMINI_MODEL, ...parsed.data.GEMINI_FALLBACK_MODELS.split(',')].map((m) => m.trim()).filter(Boolean))],
     // a dedicated pronunciation service, or Gemini listening to the recording as a fallback

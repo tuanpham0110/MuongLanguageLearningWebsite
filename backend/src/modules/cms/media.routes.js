@@ -12,24 +12,10 @@ import { prisma } from '../../lib/prisma.js';
 import { ah, parse } from '../../lib/http.js';
 import { badRequest, conflict, notFound } from '../../lib/errors.js';
 import { logger } from '../../lib/logger.js';
+import { sniff } from '../../lib/media.js';
+export { sniff } from '../../lib/media.js';
 
 export const MAX_MEDIA_BYTES = 2 * 1024 * 1024;
-
-const ascii = (buf, start, end) => buf.subarray(start, end).toString('latin1');
-
-/** @returns {{ mime: string, kind: 'image'|'audio' } | null} */
-export function sniff(buf) {
-    if (!buf || buf.length < 12) return null;
-    if (buf[0] === 0x89 && ascii(buf, 1, 4) === 'PNG') return { mime: 'image/png', kind: 'image' };
-    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return { mime: 'image/jpeg', kind: 'image' };
-    if (ascii(buf, 0, 4) === 'RIFF' && ascii(buf, 8, 12) === 'WEBP') return { mime: 'image/webp', kind: 'image' };
-    if (ascii(buf, 0, 4) === 'RIFF' && ascii(buf, 8, 12) === 'WAVE') return { mime: 'audio/wav', kind: 'audio' };
-    if (ascii(buf, 0, 3) === 'ID3' || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0)) return { mime: 'audio/mpeg', kind: 'audio' };
-    if (ascii(buf, 0, 4) === 'OggS') return { mime: 'audio/ogg', kind: 'audio' };
-    if (buf[0] === 0x1a && buf[1] === 0x45 && buf[2] === 0xdf && buf[3] === 0xa3) return { mime: 'audio/webm', kind: 'audio' };
-    if (ascii(buf, 4, 8) === 'ftyp') return { mime: 'audio/mp4', kind: 'audio' };
-    return null;
-}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_MEDIA_BYTES, files: 1 } });
 

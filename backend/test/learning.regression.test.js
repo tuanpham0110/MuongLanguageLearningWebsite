@@ -12,7 +12,7 @@ const { learningService } = await import('../src/modules/learning/learning.servi
 const { reviewService } = await import('../src/modules/review/review.service.js');
 const { invalidateContent } = await import('../src/modules/content/content.service.js');
 const { CONTENT_VERSION, contentVersion } = await import('../src/modules/learning/session.js');
-const { BADGES, decorateStages, gradeResponse } = await import('../src/modules/learning/rules.js');
+const { BADGES, decorateStages, gradeResponse, stageGates, statuses } = await import('../src/modules/learning/rules.js');
 const { ITEMS, STAGES, VOCABULARY, SENTENCES, HANDBOOK } = await import('../prisma/data/content.js');
 const { getContent } = await import('../src/modules/content/content.service.js');
 
@@ -140,6 +140,93 @@ test('BUG-002 concurrent different answers are preserved, same answer counts fir
     assert.equal(db.user.listenCorrect, 3);
 });
 
+test('LOG-02 finish rejects incomplete work even at the pass threshold and ignores client step', async () => {
+    const start = await learningService.startLesson('learner', 1);
+    const graded = start.parts.flatMap((p) => p.items).filter((it) => it.part !== 'shadow');
+    for (const it of graded.slice(0, Math.ceil(graded.length * 0.8))) {
+        await learningService.answer('learner', 1, it.id, ITEMS[it.id].answer);
+    }
+    await learningService.saveStep('learner', 1, 9999);
+    await assert.rejects(learningService.finishLesson('learner', 1), { status: 409, code: 'lesson-incomplete' });
+    assert.equal(db.attempts.length, 0);
+    assert.equal(db.progress.size, 0);
+    assert.ok(db.sessions.has(1), 'incomplete work must remain resumable');
+});
+
+test('LOG-02 all graded answers and explicit shadow decisions are required, including optional skip', async () => {
+    const start = await learningService.startLesson('learner', 1);
+    for (const it of start.parts.flatMap((p) => p.items).filter((it) => it.part !== 'shadow')) {
+        await learningService.answer('learner', 1, it.id, ITEMS[it.id].answer);
+    }
+    await assert.rejects(learningService.finishLesson('learner', 1), { code: 'lesson-incomplete' });
+    for (const it of start.parts.flatMap((p) => p.items).filter((it) => it.part === 'shadow')) {
+        await learningService.rateShadow('learner', 1, it.id, 'skip');
+    }
+    const result = await learningService.finishLesson('learner', 1);
+    assert.equal(result.score, 100);
+    assert.equal(result.passed, true);
+    assert.equal(result.parts.shadow.practiced, 0);
+});
+
+test('LOG-01 a legitimately opened stage survives new lessons in previous stages and a restart', async () => {
+    const stageId = content.stages[1].id;
+    content.lessons.push({ id: 900, stageId, title: 'Later stage fixture', published: true, position: 0, goals: [], minutes: 1 });
+    content.links.push({ lessonId: 900, itemId: 'l1-ep-em', part: 'listen', position: 0 });
+    for (const l of content.lessons.filter((l) => l.stageId === content.stages[0].id && l.published)) {
+        db.progress.set(l.id, { lessonId: l.id, best: 100, passed: true, attempts: 1 });
+    }
+    await learningService.startLesson('learner', 900);
+    await learningService.restartLesson('learner', 900);
+    content.lessons.push({ id: 901, stageId: content.stages[0].id, title: 'New prerequisite', published: true, position: -1, goals: [], minutes: 1 });
+    content.links.push({ lessonId: 901, itemId: 'l1-ep-em', part: 'listen', position: 0 });
+    invalidateContent();
+    const resumed = await learningService.startLesson('learner', 900);
+    assert.equal(resumed.lesson.id, 900);
+    assert.ok(db.user.unlockedStages.includes(stageId));
+    db.user.unlockedStages = [];
+    db.progress.clear();
+    db.sessions.clear();
+    await assert.rejects(learningService.startLesson('learner', 900), { code: 'stage-locked' });
+});
+
+test('LOG-01 gates keep earned access, published lesson order, empty-stage gates and hidden lessons', () => {
+    const C = { STAGES: [
+        { id: 1, lessons: [{ id: 1, stageId: 1, published: true }] },
+        { id: 2, lessons: [{ id: 2, stageId: 2, published: true }, { id: 3, stageId: 2, published: false }] },
+        { id: 3, lessons: [] },
+        { id: 4, lessons: [{ id: 4, stageId: 4, published: true }] },
+    ] };
+    const data = { lessons: {}, sessions: {}, unlockedStages: [1, 2] };
+    assert.deepEqual(stageGates(C, data), { 1: true, 2: true, 3: false, 4: false });
+    assert.deepEqual(statuses(C, data), { 1: 'current', 2: 'current', 3: 'soon', 4: 'locked' });
+    data.lessons[2] = { passed: true };
+    assert.equal(stageGates(C, data)[3], true);
+    assert.equal(stageGates(C, data)[4], false, 'an empty stage remains a publication barrier');
+});
+
+test('PERF-01 journey operations do not load review, notebook, activity or unrelated history', async () => {
+    for (const model of [prisma.reviewCard, prisma.notebookEntry, prisma.dailyActivity]) model.findMany = async () => assert.fail('unrelated data must not be loaded');
+    prisma.attempt.findFirst = async () => assert.fail('perfect badge lookup is only needed for overview');
+    await learningService.startLesson('learner', 1);
+    await completePending();
+    await learningService.stage('learner', 1);
+    await learningService.finishLesson('learner', 1);
+    assert.equal((await learningService.history('learner')).length, 1);
+});
+
+test('REVIEW-01 an early review token cannot be replayed within the same millisecond', async (t) => {
+    const now = Date.now();
+    t.mock.method(Date, 'now', () => now);
+    db.cards.set('l1-ep-em', { userId: 'learner', itemId: 'l1-ep-em', part: 'listen', lessonId: 1, box: 2, right: 1, wrong: 0, mastered: false, lastCorrect: true, due: new Date(now + 1), addedAt: new Date(now - 1000), lastAt: new Date(now) });
+    const [card] = await reviewService.queue('learner', { scope: 'all' });
+    const result = await reviewService.answer('learner', card.itemId, ITEMS[card.itemId].answer, card.reviewToken);
+    assert.equal(result.early, true);
+    assert.equal(result.box, 2);
+    assert.equal(result.due, now + 1);
+    await assert.rejects(reviewService.answer('learner', card.itemId, ITEMS[card.itemId].answer, card.reviewToken), { code: 'review-stale' });
+    assert.equal(db.user.reviewDone, 1);
+});
+
 test('BUG-003 content changes reject stale mutations, resume regrades first responses and prunes removed items', async () => {
     await learningService.startLesson('learner', 1);
     await learningService.answer('learner', 1, 'l1-ep-em', ITEMS['l1-ep-em'].answer);
@@ -192,6 +279,16 @@ test('BUG-003 unpublished lessons cannot be graded from an existing session', as
     assert.equal(db.attempts.length, 0);
 });
 
+async function completePending(lessonId = 1) {
+    const C = await getContent();
+    const lesson = C.STAGES.flatMap((s) => s.lessons).find((l) => l.id === lessonId);
+    for (const [part, ids] of Object.entries(lesson.parts || {})) for (const id of ids) {
+        const session = db.sessions.get(lessonId);
+        if (part === 'shadow' && !session.shadow[id]) await learningService.rateShadow('learner', lessonId, id, 'skip');
+        else if (part !== 'shadow' && !session.answers[id]) await learningService.answer('learner', lessonId, id, 'wrong');
+    }
+}
+
 test('first-try grading remains unchanged after retry, finish is serialized against duplicate finish', async () => {
     await learningService.startLesson('learner', 1);
     await learningService.answer('learner', 1, 'l1-ep-em', 'wrong');
@@ -199,6 +296,7 @@ test('first-try grading remains unchanged after retry, finish is serialized agai
     const resumed = await learningService.startLesson('learner', 1);
     assert.equal(resumed.session.answers['l1-ep-em'].correct, false);
     assert.equal(resumed.session.answers['l1-ep-em'].retryCorrect, true);
+    await completePending();
     const results = await Promise.allSettled([learningService.finishLesson('learner', 1), learningService.finishLesson('learner', 1)]);
     assert.equal(results.filter((r) => r.status === 'fulfilled').length, 1);
     assert.equal(db.attempts.length, 1);
@@ -219,6 +317,7 @@ test('BUG-011 skip to good and rating edits keep totals, daily and lesson result
     assert.equal([...db.daily.values()][0].correct, 0);
     assert.equal(db.cards.get('l1-sh-em').wrong, 1);
     await learningService.rateShadow('learner', 1, 'l1-sh-em', 'good');
+    await completePending();
     const result = await learningService.finishLesson('learner', 1);
     assert.equal(result.parts.shadow.practiced, db.user.shadowPracticed);
 });

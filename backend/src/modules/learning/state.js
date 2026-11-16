@@ -42,19 +42,20 @@ export const toSession = (s) => ({
     updatedAt: ms(s.updatedAt),
 });
 
-export async function loadState(userId, db = prisma) {
+export async function loadState(userId, db = prisma, { journeyOnly = false } = {}) {
     const [user, progress, sessions, attempts, cards, notes, daily, perfect] = await Promise.all([
         db.user.findUniqueOrThrow({ where: { id: userId } }),
         db.lessonProgress.findMany({ where: { userId } }),
         db.lessonSession.findMany({ where: { userId } }),
-        db.attempt.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 }),
-        db.reviewCard.findMany({ where: { userId } }),
-        db.notebookEntry.findMany({ where: { userId } }),
-        db.dailyActivity.findMany({ where: { userId } }),
-        db.attempt.findFirst({ where: { userId, score: 100 }, select: { id: true } }),
+        journeyOnly ? [] : db.attempt.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 100 }),
+        journeyOnly ? [] : db.reviewCard.findMany({ where: { userId } }),
+        [], // Notebook data is loaded by the notebook service, never used by learning rules.
+        journeyOnly ? [] : db.dailyActivity.findMany({ where: { userId } }),
+        journeyOnly ? null : db.attempt.findFirst({ where: { userId, score: 100 }, select: { id: true } }),
     ]);
     return {
         user,
+        unlockedStages: user.unlockedStages ?? [],
         goal: user.dailyGoal,
         reviewDone: user.reviewDone,
         partStats: {

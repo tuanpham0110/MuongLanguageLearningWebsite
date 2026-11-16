@@ -117,5 +117,13 @@ test('AI context ignores unknown ids and a lesson id that does not contain the i
     assert.equal(await tutorContext(C, 'u1', { lessonId: 99 }, fakeDb()), null);
     const lessonOnly = await tutorContext(C, 'u1', { lessonId: 1 }, fakeDb());
     assert.match(lessonOnly, /Bài 1: Làm quen/);
-    assert.match(lessonOnly, /“ếm” = “tôi”/);
+    assert.match(lessonOnly, /"text":"ếm","meaning":"tôi"/);
+});
+
+test('AI context never forwards draft/orphaned exercise content to the provider', async () => {
+    const C = content();
+    C.STAGES[0].lessons[0].published = false;
+    assert.equal(await tutorContext(C, 'u1', { lessonId: 1, itemId: 'l1-fill-em' }, fakeDb()), null);
+    C.STAGES[0].lessons = [];
+    assert.equal(await tutorContext(C, 'u1', { itemId: 'l1-fill-em' }, fakeDb()), null);
 });

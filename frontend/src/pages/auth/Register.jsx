@@ -4,8 +4,11 @@ import { Button, Checkbox, TextField } from '../../components/ui.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { FormAlert, SocialLogin, isEmail, validatePassword } from './shared.jsx';
+import useMeta from '../../hooks/useMeta.js';
 
 export default function Register() {
+    const meta = useMeta();
+    const emailDisabled = meta?.emailRegistration === false;
     const navigate = useNavigate();
     const location = useLocation();
     const { register } = useAuth();
@@ -23,6 +26,7 @@ export default function Register() {
 
     async function onSubmit(e) {
         e.preventDefault();
+        if (emailDisabled) return;
         const next = {
             name: form.name.trim().length < 2 ? 'Vui lòng nhập họ và tên.' : '',
             email: !form.email ? 'Vui lòng nhập email.' : !isEmail(form.email) ? 'Email chưa đúng định dạng.' : '',
@@ -55,6 +59,7 @@ export default function Register() {
                 <p>Tạo tài khoản miễn phí để lưu tiến độ học.</p>
             </div>
             <form className="auth-form" onSubmit={onSubmit} noValidate>
+                {emailDisabled && <FormAlert>Đăng ký bằng email tạm thời chưa khả dụng. Bạn có thể dùng tài khoản Google/Microsoft bên dưới nếu được bật.</FormAlert>}
                 <FormAlert>{formError}</FormAlert>
                 <TextField label="Họ và tên" icon="user" autoComplete="name" value={form.name} onChange={set('name')} error={errors.name} autoFocus />
                 <TextField label="Email" icon="mail" type="email" autoComplete="email" value={form.email} onChange={set('email')} error={errors.email} />
@@ -90,7 +95,7 @@ export default function Register() {
                     </Checkbox>
                     {errors.agree && <p className="field__msg">{errors.agree}</p>}
                 </div>
-                <Button type="submit" size="lg" block loading={loading}>
+                <Button type="submit" size="lg" block loading={loading} disabled={emailDisabled}>
                     Đăng ký
                 </Button>
                 <SocialLogin label="Hoặc đăng ký bằng" onError={setFormError} />

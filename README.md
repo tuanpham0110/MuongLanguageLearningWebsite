@@ -39,7 +39,7 @@ Chưa cấu hình Gmail SMTP thì mã OTP đăng ký / quên mật khẩu đư�
 ## Kiểm thử
 
 ```bash
-npm test           # test end-to-end API (cần PostgreSQL đang chạy)
+npm test           # regression/unit; các test DB chỉ chạy khi được bật rõ ràng
 npm run build      # build frontend
 ```
 
@@ -47,11 +47,11 @@ npm run build      # build frontend
 
 | Tính năng | Biến | Ghi chú |
 | --- | --- | --- |
-| Gửi email OTP thật | `SMTP_USER`, `SMTP_PASS` | Gmail → bật xác minh 2 bước → tạo *Mật khẩu ứng dụng*. Chưa cấu hình: dev in mã OTP ra console; production bỏ qua bước OTP khi đăng ký và tắt "Quên mật khẩu" |
+| Gửi email OTP thật | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Gmail → bật xác minh 2 bước → tạo *Mật khẩu ứng dụng*. Dev chưa có SMTP in mã ra console; production thiếu SMTP từ chối đăng ký email và đặt lại mật khẩu bằng 503, vẫn yêu cầu xác thực email. Google/Microsoft đã cấu hình vẫn hoạt động |
 | Trợ lý AI "Ếch Mường" | `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS` | Key miễn phí tại aistudio.google.com/apikey. Key chỉ nằm ở backend. Model chính quá tải / bị ngừng thì tự chuyển sang các model dự phòng |
 | Đăng nhập bằng Google | `GOOGLE_CLIENT_ID` | OAuth Client ID loại *Web application* (Google Cloud Console → Credentials), thêm tên miền frontend vào *Authorized JavaScript origins*. Để trống thì nút Google không hiện |
 | Đăng nhập bằng Microsoft | `MICROSOFT_CLIENT_ID` | App registration trên entra.microsoft.com (nền tảng *Single-page application*, redirect URI = địa chỉ frontend). Để trống thì nút không hiện |
-| Chấm phát âm | `GEMINI_API_KEY` hoặc `SPEECH_API_URL`, `SPEECH_API_KEY` | Mặc định: Gemini chép lại bản ghi (không biết câu mẫu), code so từng âm tiết với câu mẫu → điểm **ước lượng**. Có `SPEECH_API_URL` thì gọi dịch vụ chấm phát âm riêng |
+| Đối chiếu bản ghi | `GEMINI_API_KEY` hoặc `SPEECH_API_URL`, `SPEECH_API_KEY` | Gemini chỉ chép lại âm thanh rồi đếm âm tiết trùng chính xác (giữ dấu); tỷ lệ này không đánh giá phát âm hay thanh điệu. `SPEECH_API_URL` gọi dịch vụ riêng, cần kiểm chứng năng lực dịch vụ với chuyên gia |
 | Quản trị viên | `npm run admin:grant -- <email>` (trong `backend/`) | Cấp vai trò admin: trang `/quan-tri` (số liệu, người dùng, hộp thư hỗ trợ). `--create "Họ Tên"` để tạo tài khoản mới, `--revoke` để gỡ |
 | Email liên hệ | `SUPPORT_EMAIL` | Hiện ở trang Hỗ trợ / pháp lý; nhận thông báo khi người học nhắn tin (cần SMTP) |
 

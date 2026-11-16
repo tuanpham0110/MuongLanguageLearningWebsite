@@ -25,27 +25,36 @@ function assertVerification(token, user, email) {
     if (!user || user.verified || payload.sub !== email || payload.uid !== user.id || payload.ver !== credentialVersion(user)) throw verificationExpired();
 }
 
+function otpTransaction(email, work) {
+    return prisma.$transaction(async (tx) => {
+        // Serialize issuance, consumption and credential changes for this identity.
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "email" = ${email} FOR UPDATE`;
+        return work(tx);
+    });
+}
+
 async function issueOtp(email, purpose) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || (purpose === 'verify' ? user.verified : !user.verified)) throw verificationExpired();
-    const latest = await prisma.otpCode.findFirst({ where: { email, purpose }, orderBy: { createdAt: 'desc' } });
-    if (latest && Date.now() - latest.createdAt.getTime() < env.OTP_RESEND_SECONDS * 1000) {
-        const wait = Math.ceil((env.OTP_RESEND_SECONDS * 1000 - (Date.now() - latest.createdAt.getTime())) / 1000);
-        throw tooMany(`Vui lòng đợi ${wait} giây trước khi gửi lại mã.`, { code: 'otp-cooldown' });
-    }
-    const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
-    await prisma.$transaction([
-        // only the newest code is valid
-        prisma.otpCode.updateMany({ where: { email, purpose, consumedAt: null }, data: { consumedAt: new Date() } }),
-        prisma.otpCode.create({
+    assertMailAvailable();
+    const code = await otpTransaction(email, async (tx) => {
+        const user = await tx.user.findUnique({ where: { email } });
+        if (!user || (purpose === 'verify' ? user.verified : !user.verified)) throw verificationExpired();
+        const latest = await tx.otpCode.findFirst({ where: { email, purpose }, orderBy: { createdAt: 'desc' } });
+        if (latest && Date.now() - latest.createdAt.getTime() < env.OTP_RESEND_SECONDS * 1000) {
+            const wait = Math.ceil((env.OTP_RESEND_SECONDS * 1000 - (Date.now() - latest.createdAt.getTime())) / 1000);
+            throw tooMany(`Vui lòng đợi ${wait} giây trước khi gửi lại mã.`, { code: 'otp-cooldown' });
+        }
+        const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0');
+        await tx.otpCode.updateMany({ where: { email, purpose, consumedAt: null }, data: { consumedAt: new Date() } });
+        await tx.otpCode.create({
             data: { email, purpose, codeHash: hashCode(email, purpose, code, user), expiresAt: new Date(Date.now() + env.OTP_TTL_MINUTES * 60_000) },
-        }),
-    ]);
+        });
+        return code;
+    });
     try {
         await sendOtpMail(email, code, purpose);
     } catch (e) {
-        logger.error('Send OTP mail failed:', e.message);
-        throw badRequest('Không gửi được email xác thực. Vui lòng thử lại sau.', { code: 'mail-failed' });
+        logger.error('Send OTP mail failed:', e.code ?? e.name);
+        throw unavailable('Không gửi được email xác thực. Vui lòng thử lại sau.', { code: 'mail-failed' });
     }
 }
 
@@ -56,7 +65,7 @@ const issueOtpQuietly = (email, purpose) =>
     });
 
 async function consumeOtp(email, purpose, code, verificationToken) {
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await otpTransaction(email, async (tx) => {
         const user = await tx.user.findUnique({ where: { email } });
         if (purpose === 'verify') assertVerification(verificationToken, user, email);
         if (!user || (purpose === 'reset' && !user.verified)) throw badRequest('Mã xác thực đã hết hạn. Vui lòng gửi lại mã mới.', { field: 'code', code: 'otp-expired' });
@@ -89,17 +98,18 @@ async function consumeOtp(email, purpose, code, verificationToken) {
 }
 
 /* ───────────── Public API ───────────── */
+function assertMailAvailable() {
+    if (env.isProd && !env.mailEnabled) throw unavailable('Máy chủ chưa bật gửi email xác thực. Vui lòng thử lại sau hoặc đăng nhập bằng tài khoản Google/Microsoft.', { code: 'mail-disabled' });
+}
+
 export const authService = {
-    /**
-     * Creates the account. With email verification on, an OTP is sent and the learner signs in after
-     * confirming it. Without it (production with no SMTP – nobody could receive a code) the account is
-     * accepted as is and the session is returned right away.
-     */
+    /** Creates a pending account; only its email owner can confirm the chosen credentials. */
     async register({ name, email, password }) {
+        assertMailAvailable();
         email = normEmail(email);
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing?.verified) throw badRequest('Email này đã được đăng ký.', { field: 'email', code: 'email-taken' });
-        const data = { name: name.trim(), passwordHash: await hashPassword(password), passwordSet: true, verified: !env.verificationRequired };
+        const data = { name: name.trim(), passwordHash: await hashPassword(password), passwordSet: true, verified: false };
         // A pending registration can be replaced only while it is still the one we read.
         // In particular, a slow bcrypt call must not overwrite a concurrent Google/email verification.
         let user;
@@ -114,7 +124,6 @@ export const authService = {
         } else {
             user = await prisma.user.create({ data: { ...data, email } });
         }
-        if (!env.verificationRequired) return { email, purpose: 'verify', session: session(user, true) };
         await issueOtpQuietly(email, 'verify');
         return { email, purpose: 'verify', verificationToken: signVerification(user) };
     },
@@ -125,11 +134,8 @@ export const authService = {
         const ok = user && (await bcrypt.compare(password, user.passwordHash));
         if (!ok) throw unauthorized('Email hoặc mật khẩu không đúng. Vui lòng thử lại.', { code: 'bad-credentials' });
         if (!user.verified) {
-            if (env.verificationRequired) {
-                await issueOtpQuietly(email, 'verify');
-                throw forbidden('Tài khoản chưa được xác thực. Mã xác thực đã được gửi tới email của bạn.', { field: 'unverified', code: 'unverified', verificationToken: signVerification(user) });
-            }
-            await prisma.user.update({ where: { id: user.id }, data: { verified: true } });
+            await issueOtpQuietly(email, 'verify');
+            throw forbidden('Tài khoản chưa được xác thực. Mã xác thực đã được gửi tới email của bạn.', { field: 'unverified', code: 'unverified', verificationToken: signVerification(user) });
         }
         return session(user, remember);
     },

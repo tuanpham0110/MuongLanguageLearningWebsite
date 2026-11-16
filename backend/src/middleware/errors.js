@@ -18,6 +18,9 @@ export function errorHandler(err, req, res, _next) {
     if (err?.type === 'entity.too.large' || err?.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({ message: 'Dữ liệu gửi lên quá lớn.', code: 'too-large' });
     }
+    if (err?.name === 'MulterError') {
+        return res.status(400).json({ message: 'Tệp hoặc trường dữ liệu tải lên không hợp lệ.', code: 'bad-upload' });
+    }
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return res.status(409).json({ message: 'Dữ liệu đã tồn tại.', code: 'duplicate' });
     }

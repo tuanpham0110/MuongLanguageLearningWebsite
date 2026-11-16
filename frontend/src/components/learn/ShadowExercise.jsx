@@ -20,26 +20,31 @@ const STATUS_TEXT = {
 };
 
 /** Similarity gauge: learner vs native speaker. */
-function NativeCompare({ item, blob, onSuggest, disabled, available, engine }) {
-    const ai = engine === 'ai';
+export function NativeCompare({ item, blob, onSuggest, disabled, available, engine }) {
     const [state, setState] = useState({ status: 'idle', result: null, error: '' });
+    const ai = (state.result?.engine ?? engine) === 'ai';
     const ctrl = useRef(null);
 
     useEffect(() => {
         ctrl.current?.abort();
+        ctrl.current = null;
         setState({ status: 'idle', result: null, error: '' });
-    }, [blob, item.id]);
+    }, [blob, item.id, available, engine]);
     useEffect(() => () => ctrl.current?.abort(), []);
 
     async function run() {
-        ctrl.current?.abort();
-        ctrl.current = new AbortController();
+        if (ctrl.current || !blob || !available) return;
+        const controller = new AbortController();
+        ctrl.current = controller;
         setState({ status: 'loading', result: null, error: '' });
         try {
-            const result = await assessor.assess(blob, { itemId: item.id }, ctrl.current.signal);
+            const result = await assessor.assess(blob, { itemId: item.id }, controller.signal);
+            if (controller.signal.aborted || ctrl.current !== controller) return;
             setState({ status: 'done', result, error: '' });
         } catch (e) {
-            if (e.name !== 'AbortError') setState({ status: 'error', result: null, error: e.message });
+            if (!controller.signal.aborted && ctrl.current === controller) setState({ status: 'error', result: null, error: e.message });
+        } finally {
+            if (ctrl.current === controller) ctrl.current = null;
         }
     }
 
@@ -59,10 +64,10 @@ function NativeCompare({ item, blob, onSuggest, disabled, available, engine }) {
             </div>
             <div className="native__body">
                 <strong className="native__title">
-                    <Icon name="gauge" size={16} /> {ai ? 'Độ khớp với câu mẫu (AI ước lượng)' : 'Độ giống người bản địa'}
+                    <Icon name="gauge" size={16} /> {ai ? 'Độ trùng âm tiết trong bản chép (thử nghiệm)' : 'Độ giống người bản địa'}
                 </strong>
                 {!available ? (
-                    <p className="native__text">Đăng nhập để dùng tính năng chấm phát âm.</p>
+                    <p className="native__text">Đối chiếu bản ghi chưa khả dụng. Bạn vẫn có thể tự nghe và đánh giá.</p>
                 ) : r ? (
                     <>
                         <p className={`native__band native__band--${b.tone}`}>{b.label}</p>
@@ -81,9 +86,9 @@ function NativeCompare({ item, blob, onSuggest, disabled, available, engine }) {
                             <button type="button" className="tool-btn" onClick={run}>
                                 <Icon name="refresh" size={14} /> So sánh lại
                             </button>
-                            <button type="button" className="tool-btn tool-btn--accent" disabled={disabled} onClick={() => onSuggest(b.key)}>
+                            {!ai && <button type="button" className="tool-btn tool-btn--accent" disabled={disabled} onClick={() => onSuggest(b.key)}>
                                 <Icon name="check" size={14} /> Dùng kết quả này
-                            </button>
+                            </button>}
                         </div>
                     </>
                 ) : (
@@ -101,7 +106,7 @@ function NativeCompare({ item, blob, onSuggest, disabled, available, engine }) {
                             </p>
                         )}
                         <button type="button" className="btn btn--leaf btn--sm" onClick={run} disabled={!blob || state.status === 'loading'}>
-                            {state.status === 'loading' ? 'Đang chấm…' : ai ? 'Chấm phát âm bằng AI' : 'So sánh với người bản địa'}
+                            {state.status === 'loading' ? 'Đang xử lý…' : ai ? 'Nhận dạng và đối chiếu bản chép' : 'So sánh với người bản địa'}
                         </button>
                     </>
                 )}
@@ -205,7 +210,7 @@ export default function ShadowExercise({ item, rating, onRate, playerRef, busy, 
                         {!speechOn
                             ? 'Hãy nghe lại hai bản ghi và tự đánh giá. Bản ghi không được tải lên máy chủ. Đăng nhập để dùng thêm tính năng chấm phát âm.'
                             : meta?.speechEngine === 'ai'
-                              ? 'Điểm % là ước lượng của AI: máy chép lại những gì nghe được rồi so với câu mẫu, chưa phải so với giọng người Mường. Hãy coi đó là gợi ý và vẫn tự nghe lại. Bản ghi chỉ được gửi đi khi bạn bấm nút chấm.'
+                              ? 'Tỷ lệ % chỉ đếm âm tiết trùng giữa bản chép và câu mẫu; không đánh giá phát âm, thanh điệu hay ngữ điệu. AI có thể nhận dạng sai tiếng Mường. Hãy tự nghe lại. Bản ghi chỉ được gửi khi bạn bấm đối chiếu.'
                               : 'Bấm “So sánh với người bản địa” để xem % độ giống. Bản ghi chỉ được gửi lên máy chủ khi bạn bấm nút này.'}
                     </p>
                 </aside>

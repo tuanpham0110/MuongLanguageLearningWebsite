@@ -58,6 +58,7 @@ export function createApp() {
             speechEngine: env.speechEngine, // 'native' (pronunciation service) | 'ai' (Gemini estimate) | null
             mail: env.mailEnabled,
             emailVerification: env.verificationRequired,
+            emailRegistration: env.emailRegistrationEnabled,
             passwordReset: env.mailEnabled || !env.isProd,
             googleClientId: env.GOOGLE_CLIENT_ID || null,
             microsoftClientId: env.MICROSOFT_CLIENT_ID || null,

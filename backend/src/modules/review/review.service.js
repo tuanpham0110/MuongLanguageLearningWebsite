@@ -46,8 +46,12 @@ export const reviewService = {
             }
             const before = toCard(row);
             // practised before the due date: counted as activity, but the schedule does not move up
-            const early = correct && isEarlyReview(before);
-            const card = scheduleCard(before, correct);
+            const now = Date.now();
+            const previousLastAt = before.lastAt ?? 0;
+            const early = correct && isEarlyReview(before, now);
+            const card = scheduleCard(before, correct, now);
+            // Advance only the token revision, keeping SRS intervals on actual wall-clock time.
+            card.lastAt = Math.max(now, previousLastAt + 1);
             await tx.reviewCard.update({
                 where: { userId_itemId: { userId, itemId } },
                 data: {

@@ -23,7 +23,7 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
     process.env.NODE_ENV = 'test';
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
     process.env.JWT_SECRET = crypto.randomBytes(48).toString('hex');
-    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL', 'GOOGLE_CLIENT_ID', 'MICROSOFT_CLIENT_ID']) delete process.env[key];
+    for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL', 'GOOGLE_CLIENT_ID', 'MICROSOFT_CLIENT_ID']) process.env[key] = '';
     const { createApp } = await import('../src/app.js');
     const { prisma } = await import('../src/lib/prisma.js');
     const { signAccess } = await import('../src/lib/jwt.js');
@@ -142,6 +142,7 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
         const v = session.data.contentVersion;
         assert.equal((await api('POST', `/me/lessons/${lessonId}/session/answers`, { itemId: created.items[0], response: `TEST-nghia-${run}`, contentVersion: v }, learnerToken)).data.correct, true);
         assert.equal((await api('POST', `/me/lessons/${lessonId}/session/answers`, { itemId: created.items[1], response: ['TEST-a', 'TEST-b', 'TEST-c'], contentVersion: v }, learnerToken)).data.correct, true);
+        assert.equal((await api('POST', `/me/lessons/${lessonId}/session/shadow`, { itemId: created.items[2], rating: 'skip', contentVersion: v }, learnerToken)).status, 200);
         const finish = await api('POST', `/me/lessons/${lessonId}/session/finish`, { contentVersion: v }, learnerToken);
         assert.equal(finish.data.score, 100);
         assert.equal(finish.data.passed, true);

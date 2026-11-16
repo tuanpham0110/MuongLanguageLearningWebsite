@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 import { logger } from './logger.js';
+import { unavailable } from './errors.js';
 
 const transport = env.mailEnabled
     ? nodemailer.createTransport({
@@ -8,6 +9,9 @@ const transport = env.mailEnabled
           port: env.SMTP_PORT,
           secure: env.SMTP_SECURE,
           auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
+          connectionTimeout: 10_000,
+          greetingTimeout: 10_000,
+          socketTimeout: 20_000,
       })
     : null;
 
@@ -31,6 +35,7 @@ function html(code, purpose) {
 /** Sends an OTP email. Without SMTP config (dev) the code is printed to the server console instead. */
 export async function sendOtpMail(to, code, purpose) {
     if (!transport) {
+        if (env.isProd) throw unavailable('Máy chủ chưa bật gửi email xác thực.', { code: 'mail-disabled' });
         logger.warn(`[mail disabled] OTP (${purpose}) for ${to}: ${code}`);
         return;
     }

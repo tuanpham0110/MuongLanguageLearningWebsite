@@ -12,7 +12,7 @@ Object.assign(process.env, {
     JWT_SECRET: 'isolated-auth-regression-secret-at-least-32-characters',
     GOOGLE_CLIENT_ID: 'unit-google-client',
 });
-for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL']) delete process.env[key];
+for (const key of ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASS', 'GEMINI_API_KEY', 'SPEECH_API_URL']) process.env[key] = '';
 const { prisma } = await import('../src/lib/prisma.js');
 const { authService } = await import('../src/modules/auth/auth.service.js');
 const { accessTokenIsCurrent, credentialVersion, signAccess, signReset, signVerification, verifyToken } = await import('../src/lib/jwt.js');
@@ -30,6 +30,8 @@ function mockUser(t, initial = baseUser()) {
     const snapshot = () => ({ ...current });
     const original = prisma.user;
     const originalTransaction = prisma.$transaction;
+    const originalQuery = prisma.$queryRaw;
+    prisma.$queryRaw = async () => [{ id: current.id }];
     prisma.$transaction = async (callback) => callback(prisma);
     prisma.user = {
         findUnique: async () => snapshot(),
@@ -44,7 +46,7 @@ function mockUser(t, initial = baseUser()) {
             return { count: 1 };
         },
     };
-    t.after(() => { prisma.user = original; prisma.$transaction = originalTransaction; });
+    t.after(() => { prisma.user = original; prisma.$transaction = originalTransaction; prisma.$queryRaw = originalQuery; });
     return { get: snapshot, set: (data) => { current = { ...current, ...data }; } };
 }
 
@@ -139,15 +141,17 @@ test('BUG-001: a Google claim delayed in bcrypt preserves a concurrently confirm
     assert.equal(accessTokenIsCurrent(verifyToken(signedIn.token, 'access'), state.get()), true);
 });
 
-test('registration replacement without email verification signs its own saved credentials', async (t) => {
+test('SEC-01 registration never trusts a password before email confirmation, even if a flag is changed', async (t) => {
     const state = mockUser(t, { ...baseUser(), verified: false });
+    mockOtp(t, state.get(), 'verify').createdAt = new Date();
     const verificationRequired = env.verificationRequired;
     env.verificationRequired = false;
     t.after(() => { env.verificationRequired = verificationRequired; });
     const result = await authService.register({ name: 'Confirmed Registrant', email: 'unit@example.invalid', password: 'OwnPassword123' });
-    assert.equal(state.get().verified, true);
+    assert.equal(state.get().verified, false);
     assert.equal(await bcrypt.compare('OwnPassword123', state.get().passwordHash), true);
-    assert.equal(accessTokenIsCurrent(verifyToken(result.session.token, 'access'), state.get()), true);
+    assert.equal(result.session, undefined);
+    assert.equal(verifyToken(result.verificationToken, 'verify').ver, credentialVersion(state.get()));
 });
 
 test('BUG-001: an older registration flow cannot confirm a newly replaced password with its fresh OTP', async (t) => {

@@ -1,9 +1,13 @@
 import rateLimit from 'express-rate-limit';
+import { env } from '../config/env.js';
+import { PostgresRateLimitStore } from './rateLimitStore.js';
 
 const message = (text) => ({ message: text, code: 'rate-limited' });
+const sharedStore = (prefix) => env.isProd ? { store: new PostgresRateLimitStore(prefix), passOnStoreError: false } : {};
 
 /** Login / register / OTP – slows down brute force. */
 export const authLimiter = rateLimit({
+    ...sharedStore('auth'),
     windowMs: 15 * 60 * 1000,
     limit: 30,
     standardHeaders: 'draft-7',
@@ -13,6 +17,7 @@ export const authLimiter = rateLimit({
 
 /** General API ceiling per IP. */
 export const apiLimiter = rateLimit({
+    ...sharedStore('api'),
     windowMs: 60 * 1000,
     limit: 300,
     standardHeaders: 'draft-7',
@@ -22,6 +27,7 @@ export const apiLimiter = rateLimit({
 
 /** AI chat – per signed-in user. */
 export const aiLimiter = rateLimit({
+    ...sharedStore('ai'),
     windowMs: 60 * 1000,
     limit: 12,
     standardHeaders: 'draft-7',
@@ -32,6 +38,7 @@ export const aiLimiter = rateLimit({
 
 /** Messages to support – per signed-in user. */
 export const supportLimiter = rateLimit({
+    ...sharedStore('support'),
     windowMs: 10 * 60 * 1000,
     limit: 20,
     standardHeaders: 'draft-7',

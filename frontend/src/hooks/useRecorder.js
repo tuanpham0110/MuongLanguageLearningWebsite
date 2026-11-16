@@ -45,8 +45,17 @@ export default function useRecorder({ maxSeconds = 15 } = {}) {
 
     const stop = useCallback(() => {
         const rec = recRef.current;
-        if (rec && rec.state !== 'inactive') rec.stop();
-        else release();
+        try {
+            if (rec && rec.state !== 'inactive') rec.stop();
+            else release();
+        } catch {
+            generationRef.current++;
+            if (rec) rec.onstop = null;
+            recRef.current = null;
+            release();
+            setStatus('error');
+            setError('Không kết thúc được bản ghi. Hãy ghi âm lại.');
+        }
     }, [release]);
 
     const start = useCallback(async () => {
@@ -118,14 +127,32 @@ export default function useRecorder({ maxSeconds = 15 } = {}) {
             return;
         }
         recRef.current = rec;
-        rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        rec.ondataavailable = (e) => {
+            if (generation === generationRef.current && e.data.size) chunks.push(e.data);
+        };
+        rec.onerror = () => {
+            if (generation !== generationRef.current) return;
+            generationRef.current++;
+            rec.onstop = null;
+            try { if (rec.state !== 'inactive') rec.stop(); } catch { /* release tracks below even if the recorder failed */ }
+            recRef.current = null;
+            release();
+            setStatus('error');
+            setError('Ghi âm bị gián đoạn. Hãy ghi âm lại hoặc thử trình duyệt khác.');
+        };
         rec.onstop = () => {
             if (generation !== generationRef.current) return;
+            recRef.current = null;
             release();
             const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
             if (!blob.size) {
                 setStatus('error');
                 setError('Bản ghi trống. Hãy thử ghi âm lại.');
+                return;
+            }
+            if (blob.size > 2 * 1024 * 1024) {
+                setStatus('error');
+                setError('Bản ghi quá lớn (tối đa 2 MB). Hãy ghi âm ngắn hơn.');
                 return;
             }
             const u = URL.createObjectURL(blob);

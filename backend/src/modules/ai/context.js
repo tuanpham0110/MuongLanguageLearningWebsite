@@ -9,6 +9,7 @@
 import { prisma } from '../../lib/prisma.js';
 import { lessonItemIds } from '../learning/rules.js';
 import { CONTENT_VERSION } from '../learning/session.js';
+import { groundingRecords } from './grounding.js';
 
 const KIND = {
     'listen-pick': 'Nghe và chọn từ nghe được',
@@ -57,17 +58,17 @@ function describeSolution(item, learner) {
  */
 export async function tutorContext(C, userId, { lessonId, itemId } = {}, db = prisma) {
     const item = itemId ? C.ITEMS[itemId] : null;
-    const candidates = item ? lessonsWith(C, itemId) : [];
-    const lesson = (lessonId && C.STAGES.flatMap((s) => s.lessons).find((l) => l.id === lessonId && (!item || candidates.includes(l)))) || candidates[0] || null;
+    const candidates = item ? lessonsWith(C, itemId).filter((l) => l.published) : [];
+    if (item && !candidates.length) return null;
+    const lesson = (lessonId && C.STAGES.flatMap((s) => s.lessons).find((l) => l.published && l.id === lessonId && (!item || candidates.includes(l)))) || candidates[0] || null;
     if (!lesson && !item) return null;
 
     const lines = ['NGỮ CẢNH HỌC TẬP HIỆN TẠI (do hệ thống cung cấp, không phải người học viết):'];
     if (lesson) {
         lines.push(`- Bài ${lesson.id}: ${lesson.title}`);
         if (lesson.goals?.length) lines.push(`- Mục tiêu bài: ${lesson.goals.join('; ')}`);
-        const words = C.VOCABULARY.filter((v) => v.lessonId === lesson.id).map((v) => `${q(v.word)} = ${q(v.meaning)}`);
-        const sentences = C.SENTENCES.filter((s) => s.lessonId === lesson.id).map((s) => `${q(s.text)} = ${q(s.meaning)}`);
-        if (words.length || sentences.length) lines.push(`- Từ/câu đã kiểm chứng của bài: ${[...words, ...sentences].join('; ')}`);
+        const records = groundingRecords({ ...C, VOCABULARY: C.VOCABULARY.filter((v) => v.lessonId === lesson.id), SENTENCES: C.SENTENCES.filter((s) => s.lessonId === lesson.id) }, { context: { lessonId: lesson.id } }, { maxEntries: 12, maxChars: 2500 });
+        if (records) lines.push(`- Học liệu của bài (chỉ coi là có nguồn khi source ghi nguồn cụ thể):\n${records}`);
         lines.push('Ưu tiên trả lời trong phạm vi bài này.');
     }
     if (!item) return lines.join('\n');
