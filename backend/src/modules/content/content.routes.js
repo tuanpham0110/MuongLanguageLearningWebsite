@@ -7,6 +7,7 @@ import { ah, parse } from '../../lib/http.js';
 import { badRequest } from '../../lib/errors.js';
 import { PART_ORDER, getContent } from './content.service.js';
 import { searchDictionary } from './dictionary.js';
+import { publicHandbook } from './public-resources.js';
 import { gradeResponse, isGradable, lessonItemIds, publicItem, revealed } from '../learning/rules.js';
 
 export const contentRoutes = Router();
@@ -47,7 +48,7 @@ contentRoutes.get(
     '/handbook',
     ah(async (_req, res) => {
         const C = await getContent();
-        res.json({ articles: C.HANDBOOK, vocabulary: C.VOCABULARY, sentences: C.SENTENCES });
+        res.json(publicHandbook(C));
     })
 );
 

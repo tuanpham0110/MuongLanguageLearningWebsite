@@ -3,6 +3,7 @@ import { Button, Progress } from '../ui.jsx';
 import Icon from '../Icon.jsx';
 import AudioPlayer, { VoiceNote } from './AudioPlayer.jsx';
 import { normalizeAnswer, pickRound, shuffle } from '../../utils/learning.js';
+import useFeedbackSound from '../../hooks/useFeedbackSound.js';
 
 /**
  * Free practice over the verified word list (the same public list as the handbook).
@@ -27,6 +28,7 @@ const PAIRS = 5;
 
 /* ───────────── Ghép cặp ───────────── */
 function Match({ entries, onDone }) {
+    const sound = useFeedbackSound();
     const [round, setRound] = useState(0);
     const set = useMemo(() => pickRound(entries.filter((e) => e.type === 'word'), PAIRS), [entries, round]);
     const left = useMemo(() => shuffle(set), [set]);
@@ -53,6 +55,7 @@ function Match({ entries, onDone }) {
     function choose(side, e) {
         if (matched.has(e.id)) return;
         if (!pick || pick.side === side) return setPick({ side, id: e.id });
+        sound.play(pick.id === e.id);
         if (pick.id === e.id) {
             setMatched((m) => new Set(m).add(e.id));
             setPick(null);
@@ -120,6 +123,7 @@ function Match({ entries, onDone }) {
 
 /* ───────────── Nghe & gõ / Dịch ───────────── */
 function TypeDrill({ entries, mode, onDone }) {
+    const sound = useFeedbackSound();
     const [round, setRound] = useState(0);
     const deck = useMemo(() => pickRound(entries, ROUND), [entries, round]);
     const [i, setI] = useState(0);
@@ -183,6 +187,7 @@ function TypeDrill({ entries, mode, onDone }) {
         // several verified entries can share a meaning: any of them is right when translating
         const accepted = mode === 'translate' ? entries.filter((x) => normalizeAnswer(x.meaning) === normalizeAnswer(card.meaning)) : [card];
         const correct = accepted.some((x) => normalizeAnswer(x.text) === answer);
+        sound.play(correct);
         setResult({ correct, expected: card.text });
         setLog((l) => [...l, { entry: card, correct }]);
     }

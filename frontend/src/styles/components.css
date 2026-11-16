@@ -573,3 +573,26 @@
     text-transform: uppercase;
     color: var(--clay-600);
 }
+
+.feedback-sound {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    flex: none;
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-pill);
+    background: #fff;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.feedback-sound[aria-pressed='true'] {
+    border-color: var(--leaf-300);
+    color: var(--forest-700);
+}
+.feedback-sound:hover {
+    background: var(--leaf-50);
+}

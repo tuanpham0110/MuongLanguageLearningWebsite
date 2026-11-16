@@ -7,6 +7,8 @@ import WordDrills, { DRILLS } from '../components/learn/WordDrills.jsx';
 import { learning, notebook, review } from '../services/api.js';
 import useAsync from '../hooks/useAsync.js';
 import { formatDue } from '../utils/format.js';
+import FeedbackSoundToggle from '../components/learn/FeedbackSoundToggle.jsx';
+import useFeedbackSound from '../hooks/useFeedbackSound.js';
 
 const PART_ICON = { listen: 'headphones', build: 'puzzle', shadow: 'mic' };
 
@@ -165,6 +167,7 @@ function buildQuiz(words) {
 }
 
 function Quiz({ words }) {
+    const sound = useFeedbackSound();
     const [quiz, setQuiz] = useState(() => buildQuiz(words));
     const [i, setI] = useState(0);
     const [picked, setPicked] = useState(null);
@@ -220,6 +223,7 @@ function Quiz({ words }) {
                             className={`choice ${state}`}
                             disabled={answered}
                             onClick={() => {
+                                sound.play(correct);
                                 setPicked(o.id);
                                 if (correct) setScore((s) => s + 1);
                             }}
@@ -332,6 +336,7 @@ export default function Practice() {
                     <h1>Ôn luyện</h1>
                     <p>Ôn lại câu từng làm sai theo lịch ngắt quãng, luyện ghép – nghe – dịch từ vựng, lật thẻ và tự kiểm tra nhanh.</p>
                 </div>
+                <FeedbackSoundToggle />
                 <div className="segmented" role="tablist" aria-label="Chế độ ôn luyện">
                     <button role="tab" aria-selected={mode === 'review'} onClick={() => setMode('review')}>
                         Cần ôn tập

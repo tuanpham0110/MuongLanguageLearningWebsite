@@ -4,6 +4,8 @@ import SourceCitation from '../SourceCitation.jsx';
 import { Button } from '../ui.jsx';
 import { BuildExercise, ListenExercise, fromSubmission, toSubmission } from './Exercises.jsx';
 import ShadowExercise from './ShadowExercise.jsx';
+import FeedbackSoundToggle from './FeedbackSoundToggle.jsx';
+import useFeedbackSound from '../../hooks/useFeedbackSound.js';
 
 const HEAD = {
     listen: { icon: 'headphones', title: 'Nghe âm thanh và chọn đáp án đúng!' },
@@ -80,6 +82,7 @@ export default function ExerciseStage({
     const [saveState, setSaveState] = useState(saved ? 'saved' : 'idle');
     const playerRef = useRef(null);
     const isShadow = item.part === 'shadow';
+    const sound = useFeedbackSound();
 
     useEffect(() => {
         setSaveState(saved ? 'saved' : 'idle');
@@ -87,11 +90,13 @@ export default function ExerciseStage({
 
     async function check() {
         if (busy || response == null || result) return;
+        void sound.prepare();
         setBusy(true);
         setError('');
         try {
             const r = await onAnswer(toSubmission(item, response));
             setResult(r);
+            sound.play(r.correct);
             if (!r.correct) setShowExplain(false);
         } catch (e) {
             setError(e.message || 'Không gửi được câu trả lời. Vui lòng thử lại.');
@@ -173,6 +178,7 @@ export default function ExerciseStage({
                     <h2>{headline || (item.part === 'build' ? item.prompt : head.title)}</h2>
                     <p>{item.part === 'build' ? 'Chọn từ phù hợp, kiểm tra rồi xem dịch nghĩa.' : item.prompt || 'Nghe câu mẫu, ghi âm và so sánh.'}</p>
                 </div>
+                {!isShadow && <FeedbackSoundToggle />}
             </header>
 
             <div className="stage__card">
