@@ -14,7 +14,8 @@ export function createCommunityRoutes({ service = communityService, authenticate
     const routes = Router();
     routes.use(authenticate);
     routes.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
-    routes.get('/messages', ah(async (req, res) => res.json(await service.list(parse(communityQuery, req.query)))));
+    routes.get('/messages', ah(async (req, res) => res.json(await service.list(parse(communityQuery, req.query), req.user.id))));
+    routes.post('/read', ah(async (req, res) => res.json(await service.markRead(req.user.id, parse(z.object({ messageId: id }), req.body).messageId))));
     routes.post('/messages', limiter, ah(async (req, res) => res.status(201).json(await service.send(req.user, parse(communityBody, req.body).body))));
     routes.delete('/messages/:id', limiter, ah(async (req, res) => res.json(await service.remove(req.user, parse(id, req.params.id)))));
     return routes;

@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { admin, learning, support } from '../services/api.js';
+import { learning } from '../services/api.js';
 import Icon from '../components/Icon.jsx';
 import { Logo } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { NAV_GROUPS, NAV_ITEMS } from './nav.js';
 import ChatBox from '../components/ChatBox.jsx';
 import { resumeLabel } from '../utils/learning.js';
-import usePolling from '../hooks/usePolling.js';
-import { SUPPORT_READ_EVENT } from '../utils/support.js';
+import MessageCenter from '../components/MessageCenter.jsx';
+import { useMessageNotifications } from '../context/MessageNotificationsContext.jsx';
 
 function initials(name = '') {
     const parts = name.trim().split(/\s+/);
@@ -82,12 +82,8 @@ export default function AppLayout() {
     const [open, setOpen] = useState(false);
     const [info, setInfo] = useState(null);
     const location = useLocation();
-    const { data: supportUnread, reload: reloadUnread } = usePolling((signal) => support.unread(signal), { interval: 5000 });
-    const { data: adminNotifications, reload: reloadAdminUnread } = usePolling((signal) => isAdmin ? admin.unread(signal) : Promise.resolve({ unread: 0 }), { interval: 5000 });
-    useEffect(() => {
-        window.addEventListener(SUPPORT_READ_EVENT, reloadUnread);
-        return () => window.removeEventListener(SUPPORT_READ_EVENT, reloadUnread);
-    }, [reloadUnread]);
+    const notifications = useMessageNotifications();
+    const reloadAdminUnread = notifications.refresh;
     useEffect(() => {
         setOpen(false);
         let alive = true;
@@ -101,13 +97,10 @@ export default function AppLayout() {
     }, [location.pathname]);
 
     const due = info?.review.due ?? 0;
-    const adminUnread = isAdmin ? adminNotifications?.unread ?? 0 : 0;
-    const notificationCount = isAdmin ? adminUnread : due;
-    const notificationLabel = isAdmin
-        ? adminUnread ? `${adminUnread} tin nhắn hỗ trợ chưa đọc` : 'Không có tin nhắn hỗ trợ mới'
-        : due ? `${due} câu đến hạn ôn tập` : 'Không có câu nào cần ôn';
-    const badges = { due, support: supportUnread?.unread ?? info?.support?.unread ?? 0 };
-    const badgeLabel = { due: 'câu đến hạn ôn', support: 'tin nhắn mới từ quản trị viên' };
+    const adminUnread = isAdmin ? notifications.admin : 0;
+    const notificationLabel = due ? `${due} câu đến hạn ôn tập` : 'Không có câu nào cần ôn';
+    const badges = { due, support: notifications.support, community: notifications.community };
+    const badgeLabel = { due: 'câu đến hạn ôn', support: 'tin nhắn hỗ trợ chưa đọc', community: 'tin nhắn phòng chat chưa đọc' };
     const today = info?.stats.today;
     const focus = info?.resume
         ? { id: info.resume.lessonId, title: info.resume.title, label: resumeLabel(info.resume), pct: (info.resume.done / info.resume.total) * 100, cta: 'Học tiếp' }
@@ -130,8 +123,8 @@ export default function AppLayout() {
                                     <Icon name={item.icon} size={20} />
                                     <span>{item.label}</span>
                                     {item.badge && badges[item.badge] > 0 && (
-                                        <span className="sidebar__badge" aria-label={`${badges[item.badge]} ${badgeLabel[item.badge]}`}>
-                                            {badges[item.badge] > 9 ? '9+' : badges[item.badge]}
+                                        <span className={`sidebar__badge ${item.badge !== 'due' ? 'sidebar__badge--message' : ''}`} aria-label={`${badges[item.badge]} ${badgeLabel[item.badge]}`}>
+                                            {badges[item.badge] > 99 ? '99+' : badges[item.badge]}
                                         </span>
                                     )}
                                 </NavLink>
@@ -142,7 +135,7 @@ export default function AppLayout() {
                         <NavLink to="/quan-tri" className="sidebar__link sidebar__admin">
                             <Icon name="dashboard" size={20} />
                             <span>Quản trị</span>
-                            {adminUnread > 0 && <span className="sidebar__badge" aria-label={`${adminUnread} tin nhắn hỗ trợ chưa đọc`}>{adminUnread > 99 ? '99+' : adminUnread}</span>}
+                            {adminUnread > 0 && <span className="sidebar__badge sidebar__badge--message" aria-label={`${adminUnread} tin nhắn hỗ trợ chưa đọc`}>{adminUnread > 99 ? '99+' : adminUnread}</span>}
                         </NavLink>
                     )}
                 </nav>
@@ -210,14 +203,15 @@ export default function AppLayout() {
                         <Logo to="/tong-quan" compact />
                     </div>
                     <div className="topbar__right">
+                        <MessageCenter />
                         <Link
-                            to={isAdmin ? '/quan-tri?tab=support' : '/on-luyen'}
+                            to="/on-luyen"
                             className="icon-btn"
                             aria-label={notificationLabel}
                             title={notificationLabel}
                         >
                             <Icon name="bell" size={20} />
-                            {notificationCount > 0 && <span className="icon-btn__count">{notificationCount > 99 ? '99+' : notificationCount}</span>}
+                            {due > 0 && <span className="icon-btn__count">{due > 99 ? '99+' : due}</span>}
                         </Link>
                         <UserMenu />
                     </div>

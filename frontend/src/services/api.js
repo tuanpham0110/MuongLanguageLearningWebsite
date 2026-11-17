@@ -375,8 +375,13 @@ export const support = {
     send: (body) => post('/me/support', { body }),
 };
 
+export const messages = {
+    unread: (signal) => get('/me/messages/unread', { signal }),
+};
+
 /* ───────────── Shared learning room ───────────── */
 export const community = {
+    markRead: (messageId, signal) => post('/community/read', { messageId }, { signal }),
     messages: ({ before, after, since, signal } = {}) => {
         const query = new URLSearchParams();
         if (before) query.set('before', before);

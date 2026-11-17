@@ -5,12 +5,15 @@ import { support } from '../services/api.js';
 import usePolling from '../hooks/usePolling.js';
 import useMeta from '../hooks/useMeta.js';
 import { mergeMessages, SUPPORT_READ_EVENT } from '../utils/support.js';
+import { useMessageNotifications } from '../context/MessageNotificationsContext.jsx';
+import { UnreadBadge } from '../components/MessageCenter.jsx';
 
 const TOPICS = ['Tôi không nghe được âm thanh trong bài học', 'Tôi muốn góp ý về nội dung bài học', 'Tôi gặp lỗi khi đăng nhập / tài khoản', 'Tôi muốn đề xuất tính năng mới'];
 
 /** Learner ↔ admin conversation, refreshed while visible. */
 export default function Support() {
     const meta = useMeta();
+    const notifications = useMessageNotifications();
     const { data: messages, error, loading, reload, setData } = usePolling(async (signal) => {
         const result = await support.thread(signal);
         if (!signal.aborted) window.dispatchEvent(new Event(SUPPORT_READ_EVENT));
@@ -39,7 +42,7 @@ export default function Support() {
                             <img src="/assets/logo-mark.webp" alt="" />
                         </span>
                         <div>
-                            <strong>Quản trị viên MUONGLAB</strong>
+                            <strong>Quản trị viên MUONGLAB <UnreadBadge count={notifications.support} /></strong>
                             <span>Thường trả lời trong vòng một ngày</span>
                         </div>
                     </header>

@@ -21,3 +21,7 @@ export function mergeCommunity(previous, incoming) {
         messages: mergeCommunityMessages(previous?.messages, incoming.messages, incoming.removedIds),
     };
 }
+
+export function isCommunityUnread(message, lastRead, viewerId) {
+    return !message.deleted && message.author.id !== viewerId && (!lastRead || message.at > lastRead.at || (message.at === lastRead.at && message.id > lastRead.id));
+}

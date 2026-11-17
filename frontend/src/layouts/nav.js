@@ -5,7 +5,7 @@ export const NAV_ITEMS = [
     { to: '/tu-dien', label: 'Từ điển', icon: 'search', group: 'ref', appOnly: true },
     { to: '/so-tay', label: 'Sổ tay', icon: 'notebook', group: 'ref' },
     { to: '/cam-nang', label: 'Cẩm nang', icon: 'guide', group: 'ref' },
-    { to: '/phong-chat', label: 'Phòng chat chung', icon: 'chat', group: 'community', appOnly: true },
+    { to: '/phong-chat', label: 'Phòng chat chung', icon: 'chat', group: 'community', badge: 'community', appOnly: true },
     { to: '/ho-tro', label: 'Hỗ trợ', icon: 'mail', group: 'community', badge: 'support', appOnly: true },
 ];
 

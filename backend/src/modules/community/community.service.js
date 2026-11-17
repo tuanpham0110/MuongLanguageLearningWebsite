@@ -13,8 +13,32 @@ const toMessage = (m) => ({
 });
 
 export function createCommunityService(db = prisma) {
+    async function unread(userId) {
+        const state = await db.user.findUnique({ where: { id: userId }, select: { communityReadAt: true, communityReadId: true } });
+        if (!state) throw notFound('Không tìm thấy tài khoản.');
+        const boundary = state.communityReadAt ? { OR: [
+            { createdAt: { gt: state.communityReadAt } },
+            { createdAt: state.communityReadAt, id: { gt: state.communityReadId ?? '' } },
+        ] } : {};
+        return {
+            unread: await db.communityMessage.count({ where: { userId: { not: userId }, deletedAt: null, ...boundary } }),
+            lastRead: state.communityReadAt ? { at: state.communityReadAt.getTime(), id: state.communityReadId ?? '' } : null,
+        };
+    }
     return {
-        async list({ before, after, since } = {}) {
+        unread,
+        async markRead(userId, messageId) {
+            const message = await db.communityMessage.findUnique({ where: { id: messageId }, select: { id: true, createdAt: true } });
+            if (!message) throw notFound('Không tìm thấy tin nhắn.');
+            // Conditional update keeps a slow/older tab from moving the shared read cursor back.
+            await db.user.updateMany({ where: { id: userId, OR: [
+                { communityReadAt: null },
+                { communityReadAt: { lt: message.createdAt } },
+                { communityReadAt: message.createdAt, communityReadId: { lt: message.id } },
+            ] }, data: { communityReadAt: message.createdAt, communityReadId: message.id } });
+            return unread(userId);
+        },
+        async list({ before, after, since } = {}, viewerId) {
             // Start the next deletion window before these reads. Overlapping windows tolerate
             // concurrent requests; deleted text is never returned, including in older pages.
             const syncedAt = Date.now();
@@ -27,9 +51,10 @@ export function createCommunityService(db = prisma) {
                 const direction = after ? 'gt' : 'lt';
                 where = { OR: [{ createdAt: { [direction]: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { [direction]: cursor.id } }] };
             }
-            const [rows, removed] = await Promise.all([
+            const [rows, removed, readState] = await Promise.all([
                 db.communityMessage.findMany({ where, orderBy: [{ createdAt: after ? 'asc' : 'desc' }, { id: after ? 'asc' : 'desc' }], take: pageSize + 1, include: { user: { select: author } } }),
                 since == null ? [] : db.communityMessage.findMany({ where: { deletedAt: { gte: new Date(Math.max(0, since - 60_000)) } }, select: { id: true } }),
+                viewerId && !before && !after ? unread(viewerId) : null,
             ]);
             const page = rows.slice(0, pageSize);
             return {
@@ -39,6 +64,7 @@ export function createCommunityService(db = prisma) {
                 latestCursor: page.length ? cursorOf(after ? page.at(-1) : page[0]) : after ?? `${syncedAt}_0`,
                 removedIds: removed.map((m) => m.id),
                 syncedAt,
+                ...(readState ? { readState } : {}),
             };
         },
 

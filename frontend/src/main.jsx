@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
+import { MessageNotificationsProvider } from './context/MessageNotificationsContext.jsx';
 
 import './styles/tokens.css';
 import './styles/base.css';
@@ -17,13 +18,14 @@ import './styles/learn.css';
 import './styles/auth.css';
 import './styles/features.css';
 import './styles/community.css';
+import './styles/messages.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <ToastProvider>
                 <AuthProvider>
-                    <App />
+                    <MessageNotificationsProvider><App /></MessageNotificationsProvider>
                 </AuthProvider>
             </ToastProvider>
         </BrowserRouter>

@@ -7,6 +7,7 @@ import { reviewService } from '../review/review.service.js';
 import { notebookService } from '../notebook/notebook.service.js';
 import { supportService } from '../support/support.service.js';
 import { supportLimiter } from '../../middleware/rateLimit.js';
+import { messageNotificationsService } from '../messages/messages.service.js';
 
 const id = z.coerce.number().int().positive();
 const itemId = z.string().min(1).max(100);
@@ -15,6 +16,10 @@ const contentVersion = z.string().max(128).optional();
 
 export const learningRoutes = Router();
 learningRoutes.use(requireAuth);
+learningRoutes.get('/messages/unread', ah(async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await messageNotificationsService.unread(req.user));
+}));
 
 /* ───── Journey & lessons ───── */
 learningRoutes.get('/overview', ah(async (req, res) => res.json(await svc.overview(req.user.id))));

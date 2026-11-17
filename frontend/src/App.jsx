@@ -25,6 +25,7 @@ import Account from './pages/Account.jsx';
 import History from './pages/History.jsx';
 import Support from './pages/Support.jsx';
 import Community from './pages/Community.jsx';
+import MessageCenter from './components/MessageCenter.jsx';
 import Admin from './pages/Admin.jsx';
 import { Privacy, Terms } from './pages/Legal.jsx';
 import NotFound from './pages/NotFound.jsx';
@@ -127,6 +128,7 @@ export default function App() {
 
                 <Route path="*" element={<NotFound />} />
             </Routes>
+            <MessageCenter floating />
         </>
     );
 }

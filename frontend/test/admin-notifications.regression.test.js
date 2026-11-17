@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hookHarness, nodes, textOf } from './helpers/hooks.js';
 
-test('admin sees support notifications after login and the bell opens the unread inbox', async () => {
+test('admin sees support notifications after login and shares the count with the inbox', async () => {
     let count = 7;
     let role = 'admin';
     let pollingIndex = 0;
@@ -17,16 +17,17 @@ test('admin sees support notifications after login and the bell opens the unread
         '../utils/learning.js': { resumeLabel: () => '' },
         '../hooks/usePolling.js': { __esModule: true, default: () => ({ data: { unread: pollingIndex++ % 2 ? count : 0 }, reload() {} }) },
         '../utils/support.js': { SUPPORT_READ_EVENT: 'read' },
+        '../context/MessageNotificationsContext.jsx': { useMessageNotifications: () => ({ support: 0, community: 0, admin: count, refresh() {} }) },
+        '../components/MessageCenter.jsx': { __esModule: true, default: 'MessageCenter' },
     });
     let tree = h.render();
     const bell = () => nodes(tree, (node) => node.props.className === 'icon-btn')[0];
-    assert.equal(bell().props.to, '/quan-tri?tab=support');
-    assert.match(bell().props['aria-label'], /7 tin nhắn hỗ trợ chưa đọc/);
-    assert.equal(textOf(nodes(tree, (node) => node.props.className === 'sidebar__badge')[0]), '7');
+    assert.equal(nodes(tree, (node) => node.type === 'MessageCenter').length, 1);
+    assert.equal(textOf(nodes(tree, (node) => node.props.className?.includes('sidebar__badge'))[0]), '7');
+    assert.equal(nodes(tree, (node) => node.type === 'Outlet')[0].props.context.adminUnread, 7);
     count = 0;
     tree = h.render();
     assert.equal(nodes(tree, (node) => node.props.className === 'icon-btn__count').length, 0);
-    assert.equal(bell().props['aria-label'], 'Không có tin nhắn hỗ trợ mới');
     role = 'user';
     tree = h.render();
     assert.equal(bell().props.to, '/on-luyen');

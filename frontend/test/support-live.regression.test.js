@@ -175,6 +175,8 @@ test('learner refresh notifies unread badge and POST response merges with existi
             return { data, reload() {}, setData(update) { data = update(data); } };
         } },
         '../utils/support.js': { mergeMessages, SUPPORT_READ_EVENT },
+        '../context/MessageNotificationsContext.jsx': { useMessageNotifications: () => ({ support: 0 }) },
+        '../components/MessageCenter.jsx': { UnreadBadge: 'UnreadBadge' },
     }, b);
     let tree = h.render({});
     await load(new AbortController().signal);
@@ -186,7 +188,7 @@ test('learner refresh notifies unread badge and POST response merges with existi
     h.unmount();
 });
 
-test('sidebar unread badge refreshes after reading a thread and unsubscribes on unmount', async () => {
+test('sidebar renders the shared support count and clears it when notifications refresh', async () => {
     const b = browser();
     let unread = 2, reloads = 0;
     const reload = () => { unread = 0; reloads++; };
@@ -201,15 +203,17 @@ test('sidebar unread badge refreshes after reading a thread and unsubscribes on 
         '../utils/learning.js': { resumeLabel: () => '' },
         '../hooks/usePolling.js': { __esModule: true, default: () => ({ data: { unread }, reload }) },
         '../utils/support.js': { SUPPORT_READ_EVENT },
+        '../context/MessageNotificationsContext.jsx': { useMessageNotifications: () => ({ support: unread, community: 0, admin: 0, refresh: reload }) },
+        '../components/MessageCenter.jsx': { __esModule: true, default: 'MessageCenter' },
     }, b);
     h.render({});
     await flush();
     let tree = h.render({});
-    assert.equal(textOf(nodes(tree, (n) => n.props.className === 'sidebar__badge')[0]), '2');
-    b.window.dispatchEvent(new Event(SUPPORT_READ_EVENT));
+    assert.equal(textOf(nodes(tree, (n) => n.props.className?.includes('sidebar__badge'))[0]), '2');
+    reload();
     tree = h.render({});
     assert.equal(reloads, 1);
-    assert.equal(nodes(tree, (n) => n.props.className === 'sidebar__badge').length, 0);
+    assert.equal(nodes(tree, (n) => n.props.className?.includes('sidebar__badge')).length, 0);
     h.unmount();
     b.window.dispatchEvent(new Event(SUPPORT_READ_EVENT));
     assert.equal(reloads, 1);

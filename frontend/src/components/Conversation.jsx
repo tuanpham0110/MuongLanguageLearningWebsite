@@ -22,6 +22,11 @@ export default function Conversation({ messages, mine, onSend, placeholder = 'Nh
     const [error, setError] = useState('');
     const listRef = useRef(null);
     const sendingRef = useRef(false);
+    const firstUnread = useRef(null);
+    if (!firstUnread.current && messages.some((m) => !mine(m) && !m.read)) {
+        const unread = messages.filter((m) => !mine(m) && !m.read);
+        firstUnread.current = { id: unread[0].id, count: unread.length };
+    }
 
     useEffect(() => {
         const el = listRef.current;
@@ -64,6 +69,7 @@ export default function Conversation({ messages, mine, onSend, placeholder = 'Nh
                     return (
                         <div key={m.id} className="convo__item">
                             {showDay && <p className="convo__day">{dayLabel(m.at)}</p>}
+                            {firstUnread.current?.id === m.id && <p className="convo__unread">{firstUnread.current.count} tin nhắn mới</p>}
                             <div className={`convo__msg ${own ? 'is-mine' : ''}`}>
                                 <div className="convo__bubble">{m.body}</div>
                                 <small>

@@ -6,7 +6,10 @@ import { Button, ErrorState, Skeleton } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { community } from '../services/api.js';
 import usePolling from '../hooks/usePolling.js';
-import { mergeCommunity, mergeCommunityMessages } from '../utils/community.js';
+import { isCommunityUnread, mergeCommunity, mergeCommunityMessages } from '../utils/community.js';
+import useCommunityRead from '../hooks/useCommunityRead.js';
+import { OPEN_COMMUNITY_EVENT, useMessageNotifications } from '../context/MessageNotificationsContext.jsx';
+import { UnreadBadge } from '../components/MessageCenter.jsx';
 
 const dateOf = (at) => new Date(at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const timeOf = (at) => new Date(at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -24,6 +27,8 @@ export default function Community() {
     const olderScroll = useRef(null);
     const historyController = useRef(null);
     const lastMessage = useRef(null);
+    const initialRead = useRef(null);
+    const notifications = useMessageNotifications();
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
     const [sendError, setSendError] = useState('');
@@ -43,11 +48,27 @@ export default function Community() {
             next = page.nextAfter;
         }
         if (!signal.aborted) {
+            if (!initialRead.current && result.readState) initialRead.current = result.readState;
             syncRef.current = result.syncedAt;
             afterRef.current = result.latestCursor ?? afterRef.current;
         }
         return result;
     }, { interval: 4000, merge: mergeCommunity });
+
+    useCommunityRead({ messages: data?.messages, listRef, nearBottom });
+    useEffect(() => {
+        const latest = () => {
+            const list = listRef.current;
+            if (!list) return;
+            list.scrollIntoView({ block: 'nearest' });
+            list.scrollTop = list.scrollHeight;
+            nearBottom.current = true;
+            setShowNew(false);
+            window.dispatchEvent(new Event('scroll'));
+        };
+        window.addEventListener(OPEN_COMMUNITY_EVENT, latest);
+        return () => window.removeEventListener(OPEN_COMMUNITY_EVENT, latest);
+    }, []);
 
     useEffect(() => () => historyController.current?.abort(), []);
     useEffect(() => {
@@ -128,6 +149,7 @@ export default function Community() {
     }
 
     let lastDay = '';
+    const firstUnread = initialRead.current?.unread > 0 ? data?.messages.find((message) => isCommunityUnread(message, initialRead.current.lastRead, user.id))?.id : null;
     return (
         <div className="community">
             <header className="page-head">
@@ -138,7 +160,7 @@ export default function Community() {
                 <section className="panel community__room" aria-label="Phòng trò chuyện cộng đồng">
                     <header className="community__head">
                         <span className="community__room-icon"><Icon name="chat" size={24} /></span>
-                        <div><h2>Cộng đồng MUONGLAB</h2><p>Một góc nhỏ để cùng nhau tiến bộ</p></div>
+                        <div><h2>Cộng đồng MUONGLAB <UnreadBadge count={notifications.community} /></h2><p>Một góc nhỏ để cùng nhau tiến bộ</p></div>
                     </header>
                     {error && data && <p className="convo__error" role="status">Chưa cập nhật được tin mới. Đang tự kết nối lại… <button type="button" className="link" onClick={reload}>Thử lại</button></p>}
                     {error && !data ? <ErrorState onRetry={reload}>{error.message}</ErrorState> : (
@@ -159,7 +181,8 @@ export default function Community() {
                                         const own = message.author.id === user.id;
                                         return <div className="community__item" key={message.id}>
                                             {showDay && <p className="convo__day">{day}</p>}
-                                            <article className={`community__message ${own ? 'is-mine' : ''} ${message.deleted ? 'is-deleted' : ''}`} aria-label={`Tin nhắn của ${message.author.name}`}>
+                                            {message.id === firstUnread && <p className="convo__unread">{initialRead.current.unread} tin nhắn mới</p>}
+                                            <article data-message-id={message.id} className={`community__message ${own ? 'is-mine' : ''} ${message.deleted ? 'is-deleted' : ''}`} aria-label={`Tin nhắn của ${message.author.name}`}>
                                                 <span className="avatar community__avatar" aria-hidden="true">{initials(message.author.name)}</span>
                                                 <div className="community__message-main">
                                                     <div className="community__byline"><strong>{own ? 'Bạn' : message.author.name}</strong>{message.author.role === 'admin' && <span className="community__admin">Quản trị viên</span>}<time dateTime={new Date(message.at).toISOString()} title={new Date(message.at).toLocaleString('vi-VN')}>{timeOf(message.at)}</time></div>
@@ -171,7 +194,7 @@ export default function Community() {
                                     })}
                                 </>}
                             </div>
-                            {showNew && <button type="button" className="community__jump" onClick={() => { listRef.current.scrollTop = listRef.current.scrollHeight; nearBottom.current = true; setShowNew(false); }}><Icon name="arrow-down" size={16} /> Xuống tin mới</button>}
+                            {showNew && <button type="button" className="community__jump" onClick={() => { listRef.current.scrollTop = listRef.current.scrollHeight; nearBottom.current = true; setShowNew(false); window.dispatchEvent(new Event('scroll')); }}><Icon name="arrow-down" size={16} /> Xuống tin mới <UnreadBadge count={notifications.community} /></button>}
                         </>
                     )}
                     {sendError && <p className="convo__error" role="alert">{sendError}</p>}
@@ -187,7 +210,7 @@ export default function Community() {
                     <section className="panel community__welcome"><span className="community__eyebrow">CÙNG NHAU HỌC TỐT HƠN</span><h2>Mỗi câu hỏi đều mở đầu một điều mới.</h2><p>Hỏi điều bạn chưa rõ, kể một trải nghiệm hay chia sẻ mẹo học hữu ích với mọi người.</p><Icon name="chat" size={44} /></section>
                     <section className="panel support__card"><h2><Icon name="heart" size={18} /> Một cộng đồng thân thiện</h2><ul><li>Tôn trọng nhau và cùng tập trung vào việc học.</li><li>Nêu rõ bài học, từ hoặc câu bạn muốn hỏi.</li><li>Không đăng thông tin riêng tư hay quảng cáo.</li></ul><p className="community__privacy">Mọi thành viên đăng nhập đều xem được tin nhắn tại đây.</p></section>
                     <section className="panel support__card"><h2><Icon name="bulb" size={18} /> Gợi ý bắt chuyện</h2><div className="community__suggestions">{TOPICS.map((topic) => <button type="button" key={topic} disabled={sending} onClick={() => suggest(topic)}>{topic}<Icon name="arrow-right" size={15} /></button>)}</div></section>
-                    <p className="community__support">Cần trợ giúp riêng về tài khoản? <Link to="/ho-tro">Nhắn cho quản trị viên <Icon name="arrow-right" size={14} /></Link></p>
+                    <p className="community__support">Cần trợ giúp riêng về tài khoản? <Link to="/ho-tro">Nhắn cho quản trị viên <UnreadBadge count={notifications.support} /><Icon name="arrow-right" size={14} /></Link></p>
                 </aside>
             </div>
             <Modal open={!!toRemove} onClose={() => !removing && setToRemove(null)} title="Gỡ tin nhắn?" footer={<><Button variant="light" onClick={() => setToRemove(null)} disabled={removing}>Huỷ</Button><Button variant="green" onClick={remove} loading={removing}>Gỡ tin nhắn</Button></>}><p>Tin nhắn này sẽ được gỡ khỏi phòng chat cho mọi người.</p>{removeError && <p className="convo__error" role="alert">{removeError}</p>}</Modal>

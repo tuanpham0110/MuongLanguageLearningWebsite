@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { NAV_ITEMS } from './nav.js';
 import { CONTACT_EMAIL } from '../data/contact.js';
 import useMeta from '../hooks/useMeta.js';
+import MessageCenter from '../components/MessageCenter.jsx';
 
 export default function PublicLayout() {
     const contactEmail = useMeta()?.supportEmail || CONTACT_EMAIL;
@@ -36,6 +37,7 @@ export default function PublicLayout() {
                             </NavLink>
                         ))}
                     </nav>
+                    <MessageCenter />
                     <div className="site-header__actions">
                         {user ? (
                             <Button to="/tong-quan" variant="green" size="sm" iconRight="arrow-right">

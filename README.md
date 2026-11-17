@@ -59,6 +59,8 @@ npm run build      # build frontend
 
 Phòng chat chung nằm tại `/phong-chat`, dành cho tài khoản đã đăng nhập. Tin nhắn được lưu trong PostgreSQL, tự cập nhật khi đang mở phòng và có thể tải thêm lịch sử. Người gửi có thể gỡ tin của mình; quản trị viên có thể gỡ mọi tin. Tin nhắn hỗ trợ riêng được thông báo bằng bộ đếm trong website, chỉ đánh dấu đã đọc khi admin mở cuộc trò chuyện; không gửi thông báo qua email.
 
+Nút Tin nhắn hiển thị tổng số chưa đọc và các bộ đếm riêng cho phòng chat, hỗ trợ cá nhân và hộp thư admin. Trạng thái đọc phòng chat được lưu theo tài khoản trên máy chủ, không tính tin của chính mình hay tin đã gỡ. Tin mới chỉ được đánh dấu đã đọc khi tab đang hoạt động và người dùng xem đến cuối phòng chat; mở danh sách thông báo không đánh dấu đã đọc.
+
 Bản production chạy tại **https://muonglab.vercel.app**: frontend là file tĩnh, backend chạy dạng serverless function
 (`api/index.js`), cơ sở dữ liệu PostgreSQL trên Neon (Singapore).
 

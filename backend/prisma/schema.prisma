@@ -29,6 +29,9 @@ model User {
   verified     Boolean  @default(false)
   dailyGoal    Int      @default(10)
   reviewDone   Int      @default(0)
+  /// Last community message actually viewed; the ID breaks equal-timestamp ties.
+  communityReadAt DateTime?
+  communityReadId String?
   /// Earned stage access survives additions/reordering of earlier course content.
   unlockedStages Int[] @default([])
 
@@ -303,4 +306,5 @@ model CommunityMessage {
   @@index([createdAt, id])
   @@index([deletedAt])
   @@index([userId])
+  @@index([deletedAt, createdAt, id])
 }

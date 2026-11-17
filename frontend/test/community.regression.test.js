@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mergeCommunity, mergeCommunityMessages } from '../src/utils/community.js';
+import { isCommunityUnread, mergeCommunity, mergeCommunityMessages } from '../src/utils/community.js';
 import { hookHarness, nodes } from './helpers/hooks.js';
 
 const message = (id, at, body = id) => ({ id, at, body, deleted: false, author: { id: 'user1', name: 'Người học', role: 'user' } });
@@ -42,7 +42,10 @@ test('failed chat sends keep the draft and duplicate submits share one in-flight
         '../context/AuthContext.jsx': { useAuth: () => ({ user: { id: 'user1', role: 'user' } }) },
         '../services/api.js': { community: { send: () => { calls++; return pending; } } },
         '../hooks/usePolling.js': { __esModule: true, default: () => ({ data: { messages: [], nextBefore: null }, setData() {}, reload() {} }) },
-        '../utils/community.js': { mergeCommunity, mergeCommunityMessages },
+        '../hooks/useCommunityRead.js': { __esModule: true, default() {} },
+        '../context/MessageNotificationsContext.jsx': { useMessageNotifications: () => ({ community: 0, support: 0 }), OPEN_COMMUNITY_EVENT: 'open-room' },
+        '../components/MessageCenter.jsx': { UnreadBadge: 'UnreadBadge' },
+        '../utils/community.js': { isCommunityUnread, mergeCommunity, mergeCommunityMessages },
     });
     let tree = h.render();
     nodes(tree, (node) => node.type === 'textarea')[0].props.onChange({ target: { value: 'Xin chào mọi người' } });
@@ -57,4 +60,13 @@ test('failed chat sends keep the draft and duplicate submits share one in-flight
     assert.equal(nodes(tree, (node) => node.type === 'textarea')[0].props.value, 'Xin chào mọi người');
     assert.equal(nodes(tree, (node) => node.props.role === 'alert').length, 1);
     h.unmount();
+});
+
+test('the unread divider uses the saved boundary and excludes own or removed messages', () => {
+    const boundary = { at: 2, id: 'b' };
+    assert.equal(isCommunityUnread(message('a', 1), boundary, 'another'), false);
+    assert.equal(isCommunityUnread(message('b', 2), boundary, 'another'), false);
+    assert.equal(isCommunityUnread(message('c', 2), boundary, 'another'), true);
+    assert.equal(isCommunityUnread(message('c', 2), boundary, 'user1'), false);
+    assert.equal(isCommunityUnread({ ...message('c', 2), deleted: true }, boundary, 'another'), false);
 });

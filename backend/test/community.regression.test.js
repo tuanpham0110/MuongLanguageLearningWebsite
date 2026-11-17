@@ -15,6 +15,7 @@ const { createCommunityService } = await import('../src/modules/community/commun
 const { createCommunityRoutes, communityBody, communityQuery } = await import('../src/modules/community/community.routes.js');
 const { unauthorized } = await import('../src/lib/errors.js');
 const { errorHandler } = await import('../src/middleware/errors.js');
+const { createMessageNotificationsService } = await import('../src/modules/messages/messages.service.js');
 
 const learner = { id: 'learner', name: 'Người học', role: 'user', email: 'private@example.test' };
 const another = { id: 'another', name: 'Bạn học', role: 'user', email: 'other@example.test' };
@@ -22,7 +23,10 @@ const admin = { id: 'admin', name: 'Quản trị', role: 'admin' };
 const row = (index, at = 1000) => ({ id: `m${String(index).padStart(4, '0')}`, userId: learner.id, user: learner, body: `Tin ${index}`, createdAt: new Date(at), deletedAt: null });
 
 function database(rows = []) {
+    const states = new Map([learner, another, admin].map((user) => [user.id, { communityReadAt: null, communityReadId: null }]));
     const matches = (message, where) => {
+        if (where.userId?.not === message.userId) return false;
+        if (where.deletedAt === null && message.deletedAt !== null) return false;
         if (where.OR) return where.OR.some((condition) => {
             const at = condition.createdAt;
             if (at instanceof Date && message.createdAt.getTime() !== at.getTime()) return false;
@@ -36,7 +40,16 @@ function database(rows = []) {
         return true;
     };
     return {
+        user: {
+            findUnique: async ({ where }) => states.get(where.id) ?? null,
+            updateMany: async ({ where, data }) => {
+                const state = states.get(where.id);
+                if (state && (!state.communityReadAt || state.communityReadAt < data.communityReadAt || (+state.communityReadAt === +data.communityReadAt && state.communityReadId < data.communityReadId))) Object.assign(state, data);
+                return { count: state ? 1 : 0 };
+            },
+        },
         communityMessage: {
+            count: async ({ where }) => rows.filter((message) => matches(message, where)).length,
             findMany: async ({ where, orderBy, take, select }) => {
                 let result = rows.filter((message) => matches(message, where));
                 if (orderBy) result.sort((a, b) => (a.createdAt - b.createdAt || a.id.localeCompare(b.id)) * (orderBy[0].createdAt === 'desc' ? -1 : 1));
@@ -143,6 +156,44 @@ test('community validation rejects blank, oversized and malformed requests', () 
     assert.equal(communityBody.safeParse({ body: 'x'.repeat(2001) }).success, false);
     assert.equal(communityBody.parse({ body: '  Xin chào  ', userId: 'admin' }).body, 'Xin chào');
     for (const query of [{ before: 'bad' }, { since: -1 }, { since: 'NaN' }, { since: '999999999999999999' }, { after: '1000_m1', before: '1000_m2' }]) assert.equal(communityQuery.safeParse(query).success, false);
+});
+
+test('unread is per account, excludes own/removed posts and persists across service instances', async () => {
+    const rows = [row(0), row(1), { ...row(2), userId: another.id, user: another }, { ...row(3), deletedAt: new Date() }];
+    const db = database(rows);
+    const service = createCommunityService(db);
+    assert.equal((await service.unread(another.id)).unread, 2);
+    assert.equal((await service.list({}, another.id)).readState.unread, 2);
+    assert.equal((await service.unread(another.id)).unread, 2, 'loading history must not mark messages read');
+    assert.equal((await service.markRead(another.id, 'm0000')).unread, 1, 'equal timestamps still compare message IDs');
+    assert.equal((await service.markRead(another.id, 'm0001')).unread, 0);
+    rows.push(row(4, 2000));
+    await service.markRead(another.id, 'm0000');
+    assert.equal((await createCommunityService(db).unread(another.id)).unread, 1, 'a slower tab cannot roll back the read boundary');
+    assert.equal((await service.unread(learner.id)).unread, 1, 'another account has an independent boundary');
+    await service.remove(admin, 'm0004');
+    assert.equal((await service.unread(another.id)).unread, 0);
+    await assert.rejects(service.markRead(another.id, 'missing'), { status: 404 });
+});
+
+test('read acknowledgement cannot consume a message that arrived after the last displayed message', async () => {
+    const rows = [row(0, 1000)];
+    const service = createCommunityService(database(rows));
+    const displayed = await service.list({}, another.id);
+    rows.push(row(1, 1000), row(2, 2000));
+    const state = await service.markRead(another.id, displayed.messages.at(-1).id);
+    assert.equal(state.unread, 2);
+});
+
+test('notification summary separates room, private support and admin inbox without marking anything read', async () => {
+    let adminCalls = 0;
+    const service = createMessageNotificationsService({
+        community: { unread: async (id) => { assert.equal(id, learner.id); return { unread: 3 }; } },
+        support: { unread: async () => 2, adminUnread: async () => { adminCalls++; return 7; } },
+    });
+    assert.deepEqual(await service.unread(learner), { community: 3, support: 2, admin: 0, total: 5 });
+    assert.equal(adminCalls, 0);
+    assert.deepEqual(await service.unread({ ...learner, role: 'admin' }), { community: 3, support: 2, admin: 7, total: 12 });
 });
 
 test('community HTTP routes require authentication and use the authenticated sender', async (t) => {
