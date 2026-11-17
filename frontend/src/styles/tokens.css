@@ -9,10 +9,6 @@
     --forest-800: #135a3d;
     --forest-700: #1b6648; /* primary green */
 
-    /* Sidebar – red */
-    --sidebar-top: #c0392b;
-    --sidebar-bottom: #96221a;
-    --sidebar-accent: #ffd7cc;
     --forest-600: #00843f; /* hover / banner */
     --leaf-500: #4ca52a;
     --leaf-300: #93b25f; /* sage – stage 1 */
@@ -45,6 +41,10 @@
     --ink-2: #3f4b43;
     --muted: #6b746d;
     --subtle: #9aa199;
+
+    /* Sidebar – warm paper with forest accents */
+    --sidebar-bg: var(--paper);
+    --sidebar-accent: var(--forest-700);
 
     /* Feedback */
     --success: #2f8a3e;

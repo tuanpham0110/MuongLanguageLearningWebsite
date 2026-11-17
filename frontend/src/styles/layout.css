@@ -177,8 +177,8 @@
     display: flex;
     flex-direction: column;
     padding: var(--s-6) var(--s-4);
-    background: var(--sidebar-top);
-    color: #fff;
+    background: var(--sidebar-bg);
+    color: var(--ink-2);
     overflow: hidden;
 }
 .sidebar__brand {
@@ -195,22 +195,22 @@
     height: 46px;
     padding: 0 var(--s-4);
     border-radius: var(--r-md);
-    color: rgba(255, 255, 255, 0.82);
+    color: var(--ink-2);
     font-family: var(--font-body);
     font-size: 15px;
     font-weight: 500;
     transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .sidebar__link:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
+    background: var(--leaf-50);
+    color: var(--forest-950);
 }
 .sidebar__link.active {
-    background: #62844f;
-    color: #fff;
+    background: var(--leaf-100);
+    color: var(--forest-950);
 }
 .sidebar__link.active .icon {
-    color: #e4f3c9;
+    color: var(--sidebar-accent);
 }
 .sidebar__link:focus-visible {
     box-shadow: 0 0 0 2px var(--clay-300);

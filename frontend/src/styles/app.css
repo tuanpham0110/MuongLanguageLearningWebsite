@@ -1590,10 +1590,11 @@ a.history__main:hover strong {
     }
 }
 
-/* ═══════════ Sidebar v2 ═══════════ */
+/* ═══════════ Sidebar – warm paper ═══════════ */
 .sidebar {
     padding: var(--s-6) var(--s-4) 0;
-    background: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar-bottom) 100%);
+    border-right: 1px solid var(--line);
+    background: var(--sidebar-bg);
     overflow-y: auto;
     scrollbar-width: none;
 }
@@ -1601,14 +1602,26 @@ a.history__main:hover strong {
     display: none;
 }
 .sidebar__brand {
+    flex-shrink: 0;
     padding: var(--s-2) var(--s-3) var(--s-6);
 }
+.sidebar__brand .logo {
+    gap: var(--s-3);
+}
+.sidebar__brand .logo img {
+    width: 30px;
+}
 .sidebar__nav {
-    gap: var(--s-4);
+    flex-shrink: 0;
+    gap: var(--s-5);
 }
 .sidebar__group {
     display: grid;
-    gap: 2px;
+    gap: var(--s-1);
+}
+.sidebar__group + .sidebar__group {
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--line);
 }
 .sidebar__label {
     padding: 0 var(--s-4) 6px;
@@ -1616,14 +1629,15 @@ a.history__main:hover strong {
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--forest-700);
 }
 .sidebar__link {
     position: relative;
     height: 44px;
 }
 .sidebar__link.active {
-    background: rgba(255, 255, 255, 0.16);
+    background: var(--leaf-100);
+    font-weight: 600;
     box-shadow: inset 3px 0 0 var(--sidebar-accent);
 }
 .sidebar__link.active .icon {
@@ -1637,8 +1651,9 @@ a.history__main:hover strong {
     margin-left: auto;
     padding: 0 6px;
     border-radius: var(--r-pill);
-    background: #fff;
-    color: var(--sidebar-bottom);
+    border: 1px solid var(--leaf-200);
+    background: var(--leaf-50);
+    color: var(--forest-800);
     font-size: 11px;
     font-weight: 700;
 }
@@ -1646,17 +1661,21 @@ a.history__main:hover strong {
 /* "Đang học" mini card */
 .side-card {
     display: grid;
+    flex-shrink: 0;
     gap: 6px;
     margin-top: var(--s-6);
     padding: var(--s-4);
+    border: 1px solid var(--line);
     border-radius: var(--r-lg);
-    background: #fff;
+    background: var(--surface);
     color: var(--ink);
-    box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.5);
-    transition: transform var(--dur) var(--ease);
+    box-shadow: var(--shadow-1);
+    transition: transform var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .side-card:hover {
     transform: translateY(-2px);
+    border-color: var(--leaf-200);
+    box-shadow: var(--shadow-2);
 }
 .side-card__label {
     display: inline-flex;
@@ -1688,11 +1707,11 @@ a.history__main:hover strong {
     border-radius: inherit;
     background: var(--leaf-500);
 }
-.side-card__bar--warm {
-    background: rgba(255, 255, 255, 0.14);
+.side-card__bar--today {
+    background: var(--leaf-100);
 }
-.side-card__bar--warm > span {
-    background: linear-gradient(90deg, #f9b445, #f97316);
+.side-card__bar--today > span {
+    background: var(--forest-700);
 }
 .side-card__cta {
     display: inline-flex;
@@ -1706,34 +1725,36 @@ a.history__main:hover strong {
 /* "Hôm nay" widget */
 .side-today {
     display: grid;
+    flex-shrink: 0;
     gap: 8px;
     margin-top: var(--s-3);
     padding: var(--s-3) var(--s-4);
+    border: 1px solid var(--leaf-200);
     border-radius: var(--r-lg);
-    background: rgba(0, 0, 0, 0.14);
-    color: rgba(255, 255, 255, 0.85);
+    background: var(--leaf-50);
+    color: var(--forest-800);
     font-size: 13px;
     transition: background-color var(--dur);
 }
 .side-today:hover {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--leaf-100);
 }
 .side-today__row {
     display: flex;
     justify-content: space-between;
 }
 .side-today__row b {
-    color: #fff;
+    color: var(--forest-950);
 }
 .side-today__streak {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--ink-2);
 }
 .side-today__streak .icon {
-    color: #f9b445;
+    color: var(--clay-700);
 }
 
 /* Hills + mascot at the bottom */
@@ -1751,7 +1772,7 @@ a.history__main:hover strong {
     z-index: 2;
     max-width: 130px;
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.85);
+    color: var(--ink-2);
 }
 .sidebar__mascot {
     position: absolute;
@@ -1770,7 +1791,34 @@ a.history__main:hover strong {
     width: 100%;
     height: 90px;
 }
+.sidebar__hill--back {
+    fill: var(--leaf-50);
+}
+.sidebar__hill--middle {
+    fill: var(--leaf-100);
+}
+.sidebar__hill--front {
+    fill: var(--leaf-200);
+}
 @media (max-height: 780px) {
+    .sidebar__brand {
+        padding-bottom: var(--s-5);
+    }
+    .sidebar__nav {
+        gap: var(--s-4);
+    }
+    .sidebar__group {
+        gap: 2px;
+    }
+    .sidebar__group + .sidebar__group {
+        padding-top: var(--s-3);
+    }
+    .sidebar__link {
+        height: 40px;
+    }
+    .side-card {
+        margin-top: var(--s-5);
+    }
     .side-today {
         display: none;
     }

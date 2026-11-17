@@ -111,7 +111,7 @@ export default function AppLayout() {
         <div className={`app ${open ? 'is-nav-open' : ''}`}>
             <aside className="sidebar" aria-label="Điều hướng ứng dụng">
                 <div className="sidebar__brand">
-                    <Logo to="/tong-quan" light />
+                    <Logo to="/tong-quan" />
                 </div>
                 <nav className="sidebar__nav">
                     {NAV_GROUPS.map((g) => (
@@ -159,7 +159,7 @@ export default function AppLayout() {
                                 {Math.min(today.answered, today.goal)}/{today.goal} câu
                             </b>
                         </span>
-                        <span className="side-card__bar side-card__bar--warm">
+                        <span className="side-card__bar side-card__bar--today">
                             <span style={{ width: `${Math.min(100, (today.answered / today.goal) * 100)}%` }} />
                         </span>
                         <span className="side-today__streak">
@@ -176,9 +176,9 @@ export default function AppLayout() {
                     </p>
                     <img src="/assets/mascot-point.webp" alt="" className="sidebar__mascot" loading="lazy" />
                     <svg className="sidebar__hills" viewBox="0 0 248 90" preserveAspectRatio="none">
-                        <path d="M0 52 C40 28 70 30 110 46 S190 26 248 40 V90 H0Z" fill="#7c1a13" />
-                        <path d="M0 66 C50 48 96 70 140 60 S210 50 248 62 V90 H0Z" fill="#8e2018" />
-                        <path d="M0 80 C60 70 120 86 170 78 S230 74 248 80 V90 H0Z" fill="#a3281e" />
+                        <path className="sidebar__hill--back" d="M0 52 C40 28 70 30 110 46 S190 26 248 40 V90 H0Z" />
+                        <path className="sidebar__hill--middle" d="M0 66 C50 48 96 70 140 60 S210 50 248 62 V90 H0Z" />
+                        <path className="sidebar__hill--front" d="M0 80 C60 70 120 86 170 78 S230 74 248 80 V90 H0Z" />
                     </svg>
                 </div>
             </aside>
