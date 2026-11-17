@@ -38,7 +38,10 @@ test('the notification provider refreshes on support/community reads and removes
     const h = hookHarness('../../src/context/MessageNotificationsContext.jsx', {
         './AuthContext.jsx': { useAuth: () => ({ user: { id: 'u', role: 'user' } }) },
         '../services/api.js': { messages: {} },
-        '../hooks/usePolling.js': { __esModule: true, default: () => ({ data: { community: 3, support: 1, admin: 0, total: 4 }, reload() { reloads++; } }) },
+        '../hooks/usePolling.js': { __esModule: true, default: (_load, options) => {
+            assert.equal(options.restartOnReload, true);
+            return { data: { community: 3, support: 1, admin: 0, total: 4 }, reload() { reloads++; } };
+        } },
         '../utils/support.js': { SUPPORT_READ_EVENT: 'support-read' },
     }, { document, window });
     const provider = h.render({ children: 'child' }, 'MessageNotificationsProvider');
@@ -98,6 +101,7 @@ test('community marks read only while focused, visible, at the bottom and on scr
     assert.equal(requests.length, 1, 'never overlaps acknowledgements');
     requests[0].resolve({ unread: 1 });
     await flush();
+    assert.equal(h.render({ messages: [{ id: 'm1' }, { id: 'm2' }], listRef, nearBottom }).unread, 1);
     await animate();
     assert.equal(requests[1].id, 'm2');
     assert.equal(notified, 1);

@@ -29,7 +29,6 @@ export default function Community() {
     const olderScroll = useRef(null);
     const historyController = useRef(null);
     const lastMessage = useRef(null);
-    const initialRead = useRef(null);
     const notifications = useMessageNotifications();
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
@@ -50,14 +49,13 @@ export default function Community() {
             next = page.nextAfter;
         }
         if (!signal.aborted) {
-            if (!initialRead.current && result.readState) initialRead.current = result.readState;
             syncRef.current = result.syncedAt;
             afterRef.current = result.latestCursor ?? afterRef.current;
         }
         return result;
     }, { interval: 4000, merge: mergeCommunity });
 
-    useCommunityRead({ messages: data?.messages, listRef, nearBottom });
+    const confirmedRead = useCommunityRead({ messages: data?.messages, listRef, nearBottom });
     useEffect(() => {
         const latest = () => {
             const list = listRef.current;
@@ -153,7 +151,9 @@ export default function Community() {
     }
 
     let lastDay = '';
-    const firstUnread = initialRead.current?.unread > 0 ? data?.messages.find((message) => isCommunityUnread(message, initialRead.current.lastRead, user.id))?.id : null;
+    const readState = confirmedRead ?? data?.readState;
+    const unread = readState ? data?.messages.filter((message) => isCommunityUnread(message, readState.lastRead, user.id)) ?? [] : [];
+    const firstUnread = unread[0]?.id;
     return (
         <div className="community">
             <header className="page-head">
@@ -185,7 +185,7 @@ export default function Community() {
                                         const own = message.author.id === user.id;
                                         return <div className="community__item" key={message.id}>
                                             {showDay && <p className="convo__day">{day}</p>}
-                                            {message.id === firstUnread && <p className="convo__unread">{initialRead.current.unread} tin nhắn mới</p>}
+                                            {message.id === firstUnread && <p className="convo__unread">{unread.length} tin nhắn mới</p>}
                                             <article data-message-id={message.id} className={`community__message ${own ? 'is-mine' : ''} ${message.deleted ? 'is-deleted' : ''}`} aria-label={`Tin nhắn của ${message.author.name}`}>
                                                 <span className="avatar community__avatar" aria-hidden="true">{initials(message.author.name)}</span>
                                                 <div className="community__message-main">

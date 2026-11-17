@@ -16,6 +16,7 @@ export function mergeCommunityMessages(previous = [], incoming = [], removedIds 
 export function mergeCommunity(previous, incoming) {
     return {
         ...incoming,
+        readState: incoming.readState ?? previous?.readState,
         // A subsequent snapshot describes the newest page, not the oldest page already loaded.
         nextBefore: previous?.messages?.length ? previous.nextBefore : incoming.nextBefore,
         messages: mergeCommunityMessages(previous?.messages, incoming.messages, incoming.removedIds),

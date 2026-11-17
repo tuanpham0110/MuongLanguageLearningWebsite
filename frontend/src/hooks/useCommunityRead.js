@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { community } from '../services/api.js';
 import { notifyMessagesChanged } from '../context/MessageNotificationsContext.jsx';
 
@@ -7,6 +7,7 @@ export default function useCommunityRead({ messages, listRef, nearBottom }) {
     const latestRef = useRef(null);
     const readRef = useRef(null);
     const scheduleRef = useRef(() => {});
+    const [readState, setReadState] = useState(null);
     latestRef.current = messages?.at(-1)?.id ?? null;
 
     useEffect(() => {
@@ -29,8 +30,12 @@ export default function useCommunityRead({ messages, listRef, nearBottom }) {
             const controller = new AbortController();
             request = controller;
             try {
-                await community.markRead(id, controller.signal);
-                if (alive && !controller.signal.aborted) { readRef.current = id; notifyMessagesChanged(); }
+                const result = await community.markRead(id, controller.signal);
+                if (alive && !controller.signal.aborted) {
+                    readRef.current = id;
+                    setReadState(result);
+                    notifyMessagesChanged();
+                }
             } catch {
                 // Keep the unread badge until a later refresh/focus can acknowledge successfully.
             } finally {
@@ -56,4 +61,5 @@ export default function useCommunityRead({ messages, listRef, nearBottom }) {
         };
     }, [listRef, nearBottom]);
     useEffect(() => scheduleRef.current(), [messages]);
+    return readState;
 }

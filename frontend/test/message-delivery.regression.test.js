@@ -82,3 +82,45 @@ test('support receipts require focus and visible incoming message ends, and retr
     await flush();
     assert.equal(requests.length, 3);
 });
+
+test('reply receipts retry offscreen messages in bounded batches without consuming newer arrivals', async () => {
+    const document = new EventTarget(), window = new EventTarget();
+    document.visibilityState = 'visible';
+    document.hasFocus = () => true;
+    window.innerHeight = 800;
+    const frames = new Map(), requests = [];
+    let frameId = 0;
+    const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
+    const animate = async () => { const pending = [...frames.values()]; frames.clear(); pending.forEach((fn) => fn()); await flush(); };
+    const h = hookHarness('../../src/hooks/useVisibleMessageReads.js', {}, {
+        document, window, AbortController,
+        requestAnimationFrame(fn) { frames.set(++frameId, fn); return frameId; }, cancelAnimationFrame(id) { frames.delete(id); },
+    });
+    const incoming = Array.from({ length: 401 }, (_, i) => ({ id: `incoming${i}` }));
+    const props = {
+        messages: [...incoming, { id: 'own', own: true }], mine: (m) => !!m.own,
+        listRef: { current: { getBoundingClientRect: () => ({ top: 100, bottom: 600 }), querySelector: () => ({ getBoundingClientRect: () => ({ bottom: 900 }) }) } },
+        onRead(ids, signal) { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); requests.push({ ids: [...ids], signal, resolve, reject }); return promise; },
+    };
+    const acknowledge = h.render(props);
+    await animate();
+    assert.equal(requests.length, 0, 'unseen history is not read just by loading it');
+    acknowledge([...incoming.map((m) => m.id), 'own']);
+    await animate();
+    assert.equal(requests[0].ids.length, 200);
+    props.messages = [...props.messages, { id: 'new-arrival' }];
+    h.render(props);
+    requests[0].reject(new Error('offline'));
+    await flush();
+    await animate();
+    assert.equal(requests.length, 2, 'a later refresh retries the failed receipt');
+    assert.deepEqual(requests[1].ids, requests[0].ids);
+    for (let i = 1; i <= 3; i++) { requests[i].resolve(); await flush(); await animate(); }
+    assert.deepEqual(requests.slice(1).map((r) => r.ids.length), [200, 200, 1]);
+    assert.equal(new Set(requests.slice(1).flatMap((r) => r.ids)).size, 401);
+    assert.ok(requests.every((r) => !r.ids.includes('own') && !r.ids.includes('new-arrival')));
+    h.unmount();
+    acknowledge(['new-arrival']);
+    await animate();
+    assert.equal(requests.length, 4, 'unmounted conversations cannot send receipts');
+});

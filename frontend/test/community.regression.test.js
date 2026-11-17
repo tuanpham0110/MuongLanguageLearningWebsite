@@ -23,10 +23,11 @@ test('removed messages never return with old text, including deletion of older l
 });
 
 test('live updates preserve the oldest loaded history cursor', () => {
-    const page = { messages: [message('a', 1)], nextBefore: '0_a', removedIds: [] };
+    const page = { messages: [message('a', 1)], nextBefore: '0_a', removedIds: [], readState: { unread: 1, lastRead: null } };
     assert.equal(mergeCommunity(null, page).nextBefore, '0_a');
     const next = mergeCommunity(page, { messages: [message('b', 2)], nextBefore: null, removedIds: [] });
     assert.equal(next.nextBefore, '0_a');
+    assert.deepEqual(next.readState, page.readState);
     assert.deepEqual(next.messages.map((item) => item.id), ['a', 'b']);
     assert.equal(mergeCommunity({ ...next, nextBefore: null }, page).nextBefore, null);
 });

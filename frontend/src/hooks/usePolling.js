@@ -5,7 +5,7 @@ const replace = (_previous, next) => next;
 /** One request at a time; refresh on focus/reconnect and keep data during outages.
  * Mount with a different key when the resource identity changes.
  */
-export default function usePolling(loader, { interval = 3000, merge = replace } = {}) {
+export default function usePolling(loader, { interval = 3000, merge = replace, restartOnReload = false } = {}) {
     const [state, setState] = useState({ data: null, error: null, loading: true });
     const loaderRef = useRef(loader);
     const mergeRef = useRef(merge);
@@ -57,7 +57,16 @@ export default function usePolling(loader, { interval = 3000, merge = replace } 
             if (visible()) refresh();
             else suspend();
         }
-        reloadRef.current = refresh;
+        reloadRef.current = () => {
+            // Counts and inbox snapshots must be fetched after a read acknowledgement.
+            // Cursor-based message loaders keep the default queued refresh instead.
+            if (restartOnReload) {
+                controller?.abort();
+                controller = null;
+                queued = false;
+            }
+            refresh();
+        };
         document.addEventListener('visibilitychange', onVisibility);
         window.addEventListener('focus', refresh);
         window.addEventListener('online', refresh);
@@ -70,7 +79,7 @@ export default function usePolling(loader, { interval = 3000, merge = replace } 
             window.removeEventListener('focus', refresh);
             window.removeEventListener('online', refresh);
         };
-    }, [interval]);
+    }, [interval, restartOnReload]);
 
     const reload = useCallback(() => reloadRef.current(), []);
     const setData = useCallback((update) => setState((s) => ({ ...s, data: typeof update === 'function' ? update(s.data) : update })), []);

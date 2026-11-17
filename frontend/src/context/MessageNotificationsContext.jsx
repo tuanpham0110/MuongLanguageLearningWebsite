@@ -10,7 +10,7 @@ const empty = { community: 0, support: 0, admin: 0, total: 0, loaded: false, ref
 const Context = createContext(empty);
 
 function SignedInNotifications({ children }) {
-    const { data, reload, error } = usePolling((signal) => messages.unread(signal), { interval: 5000 });
+    const { data, reload, error } = usePolling((signal) => messages.unread(signal), { interval: 5000, restartOnReload: true });
     useEffect(() => {
         window.addEventListener(SUPPORT_READ_EVENT, reload);
         window.addEventListener(MESSAGES_CHANGED_EVENT, reload);

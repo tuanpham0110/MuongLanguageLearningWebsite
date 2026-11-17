@@ -31,12 +31,12 @@ export default function Conversation({ messages, mine, onSend, onRead, placehold
     const lastId = useRef(null);
     const [showNew, setShowNew] = useState(false);
     const firstUnread = useRef(null);
-    if (!firstUnread.current && messages.some((m) => !mine(m) && !m.read)) {
-        const unread = messages.filter((m) => !mine(m) && !m.read);
+    const unread = messages.filter((m) => !mine(m) && !m.read);
+    if (!firstUnread.current && unread.length) {
         firstUnread.current = { id: unread[0].id, count: unread.length };
     }
 
-    useVisibleMessageReads({ messages, mine, onRead, listRef });
+    const acknowledgeReply = useVisibleMessageReads({ messages, mine, onRead, listRef });
 
     useEffect(() => {
         const el = listRef.current;
@@ -59,6 +59,7 @@ export default function Conversation({ messages, mine, onSend, onRead, placehold
         e?.preventDefault();
         const body = (suggestedText ?? text).trim();
         if (!body || sendingRef.current) return;
+        const repliedIds = unread.map((message) => message.id);
         sendingRef.current = true;
         setSending(true);
         setError('');
@@ -66,6 +67,7 @@ export default function Conversation({ messages, mine, onSend, onRead, placehold
         try {
             await onSend(body, attemptRef.current.clientMessageId);
             attemptRef.current = null;
+            acknowledgeReply?.(repliedIds);
             forceBottom.current = true;
             if (listRef.current) { listRef.current.scrollTop = listRef.current.scrollHeight; nearBottom.current = true; }
             if (suggestedText === undefined) setText('');
@@ -99,7 +101,7 @@ export default function Conversation({ messages, mine, onSend, onRead, placehold
                     return (
                         <div key={m.id} className="convo__item">
                             {showDay && <p className="convo__day">{dayLabel(m.at)}</p>}
-                            {firstUnread.current?.id === m.id && <p className="convo__unread">{firstUnread.current.count} tin nhắn mới</p>}
+                            {unread[0]?.id === m.id && <p className="convo__unread">{unread.length} tin nhắn mới</p>}
                             <div data-support-message-id={m.id} className={`convo__msg ${own ? 'is-mine' : ''}`}>
                                 <div className="convo__bubble">{m.body}</div>
                                 <small>

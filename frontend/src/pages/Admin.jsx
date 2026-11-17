@@ -334,7 +334,7 @@ function Users({ onMessage }) {
 
 /* ───────────── Support inbox ───────────── */
 function Inbox({ openId, onOpen, onRead }) {
-    const { data: threads, error, loading, reload } = usePolling((signal) => admin.threads(signal), { interval: 5000 });
+    const { data: threads, error, loading, reload } = usePolling((signal) => admin.threads(signal), { interval: 5000, restartOnReload: true });
 
     if (error && !threads) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
     return (

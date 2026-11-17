@@ -53,10 +53,10 @@ export function hookHarness(file, mocks = {}, globals = {}) {
     const source = readFileSync(new URL(file, import.meta.url), 'utf8');
     vm.runInContext(transformSync(source, { loader: 'jsx', format: 'cjs', jsx: 'automatic' }).code, context);
     return {
-        render(props, exportName = 'default') {
+        render(props, exportName = 'default', ...args) {
             cursor = 0;
             const component = typeof exportName === 'function' ? exportName : mod.exports[exportName];
-            const result = component(props);
+            const result = component(props, ...args);
             while (effects.length) effects.shift()();
             return result;
         },
