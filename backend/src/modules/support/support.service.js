@@ -5,25 +5,31 @@
  */
 import { prisma } from '../../lib/prisma.js';
 import { notFound } from '../../lib/errors.js';
+import { createMessageOnce } from '../messages/delivery.js';
 
 const toMessage = (m) => ({ id: m.id, fromAdmin: m.fromAdmin, body: m.body, at: m.createdAt.getTime(), read: !!m.readAt });
 
 export function createSupportService(db = prisma) {
     return {
         /* ───── learner ───── */
-        /** The learner's conversation; opening it marks the admin's replies as read. */
+        /** Loading a conversation never changes read receipts. */
         async thread(userId) {
             const rows = await db.supportMessage.findMany({ where: { userId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
-            if (rows.some((m) => m.fromAdmin && !m.readAt)) {
-                await db.supportMessage.updateMany({ where: { userId, id: { in: rows.map((m) => m.id) }, fromAdmin: true, readAt: null }, data: { readAt: new Date() } });
-            }
             return rows.map(toMessage);
+        },
+
+        async markRead(userId, messageIds) {
+            await db.supportMessage.updateMany({ where: { userId, id: { in: messageIds }, fromAdmin: true, readAt: null }, data: { readAt: new Date() } });
+            return { ok: true };
         },
 
         unread: (userId) => db.supportMessage.count({ where: { userId, fromAdmin: true, readAt: null } }),
 
-        async send(user, body) {
-            const m = await db.supportMessage.create({ data: { userId: user.id, fromAdmin: false, body } });
+        async send(user, body, clientMessageId) {
+            const m = await createMessageOnce(db.supportMessage, {
+                key: clientMessageId ? { senderId_clientMessageId: { senderId: user.id, clientMessageId } } : null,
+                data: { userId: user.id, senderId: user.id, fromAdmin: false, body, clientMessageId },
+            });
             return toMessage(m);
         },
 
@@ -56,21 +62,26 @@ export function createSupportService(db = prisma) {
                 .sort((a, b) => (b.unread > 0) - (a.unread > 0) || b.lastAt - a.lastAt);
         },
 
-        /** One learner's conversation as the admin sees it; opening it marks the learner's messages as read. */
+        /** The inbox preview and its loaded history do not consume unread messages. */
         async adminThread(userId) {
             const user = await db.user.findUnique({ where: { id: userId }, select: { id: true, name: true, email: true, createdAt: true } });
             if (!user) throw notFound('Không tìm thấy người dùng.');
             const rows = await db.supportMessage.findMany({ where: { userId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] });
-            if (rows.some((m) => !m.fromAdmin && !m.readAt)) {
-                await db.supportMessage.updateMany({ where: { userId, id: { in: rows.map((m) => m.id) }, fromAdmin: false, readAt: null }, data: { readAt: new Date() } });
-            }
             return { user: { ...user, createdAt: user.createdAt.getTime() }, messages: rows.map(toMessage) };
         },
 
-        async reply(userId, body) {
+        async adminMarkRead(userId, messageIds) {
+            await db.supportMessage.updateMany({ where: { userId, id: { in: messageIds }, fromAdmin: false, readAt: null }, data: { readAt: new Date() } });
+            return { ok: true };
+        },
+
+        async reply(userId, body, clientMessageId, senderId) {
             const exists = await db.user.count({ where: { id: userId } });
             if (!exists) throw notFound('Không tìm thấy người dùng.');
-            return toMessage(await db.supportMessage.create({ data: { userId, fromAdmin: true, body } }));
+            return toMessage(await createMessageOnce(db.supportMessage, {
+                key: clientMessageId ? { senderId_clientMessageId: { senderId, clientMessageId } } : null,
+                data: { userId, senderId, fromAdmin: true, body, clientMessageId },
+            }));
         },
 
         adminUnread: () => db.supportMessage.count({ where: { fromAdmin: false, readAt: null } }),

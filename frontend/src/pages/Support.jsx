@@ -14,16 +14,19 @@ const TOPICS = ['Tôi không nghe được âm thanh trong bài học', 'Tôi mu
 export default function Support() {
     const meta = useMeta();
     const notifications = useMessageNotifications();
-    const { data: messages, error, loading, reload, setData } = usePolling(async (signal) => {
-        const result = await support.thread(signal);
-        if (!signal.aborted) window.dispatchEvent(new Event(SUPPORT_READ_EVENT));
-        return result;
-    }, { merge: mergeMessages });
+    const { data: messages, error, loading, reload, setData } = usePolling((signal) => support.thread(signal), { merge: mergeMessages });
 
-    async function send(body) {
-        const m = await support.send(body);
+    async function send(body, clientMessageId) {
+        const m = await support.send(body, clientMessageId);
         setData((list) => mergeMessages(list, [m]));
         reload();
+    }
+    async function markRead(messageIds, signal) {
+        await support.markRead(messageIds, signal);
+        if (signal.aborted) return;
+        const read = new Set(messageIds);
+        setData((list) => list?.map((message) => read.has(message.id) ? { ...message, read: true } : message));
+        window.dispatchEvent(new Event(SUPPORT_READ_EVENT));
     }
 
     return (
@@ -59,6 +62,7 @@ export default function Support() {
                             messages={messages ?? []}
                             mine={(m) => !m.fromAdmin}
                             onSend={send}
+                            onRead={markRead}
                             otherLabel="Quản trị viên"
                             placeholder="Nhập nội dung cần hỗ trợ…"
                             suggestions={TOPICS}

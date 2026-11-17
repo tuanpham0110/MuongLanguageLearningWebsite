@@ -32,6 +32,7 @@ model User {
   /// Last community message actually viewed; the ID breaks equal-timestamp ties.
   communityReadAt DateTime?
   communityReadId String?
+  communityReadPosition Int @default(0)
   /// Earned stage access survives additions/reordering of earlier course content.
   unlockedStages Int[] @default([])
 
@@ -285,6 +286,8 @@ model SupportMessage {
   userId    String
   fromAdmin Boolean   @default(false)
   body      String
+  senderId String?
+  clientMessageId String?
   /// when the other side opened the conversation
   readAt    DateTime?
   createdAt DateTime  @default(now())
@@ -292,6 +295,7 @@ model SupportMessage {
 
   @@index([userId, createdAt])
   @@index([fromAdmin, readAt])
+  @@unique([senderId, clientMessageId])
 }
 
 /// One shared learning room for signed-in users. Removed messages retain a tombstone.
@@ -299,6 +303,9 @@ model CommunityMessage {
   id        String   @id @default(cuid())
   userId    String
   body      String
+  clientMessageId String?
+  /// Assigned after a database write lock, so the order also follows committed inserts.
+  position Int @unique @default(autoincrement())
   createdAt DateTime @default(now())
   deletedAt DateTime?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -307,4 +314,6 @@ model CommunityMessage {
   @@index([deletedAt])
   @@index([userId])
   @@index([deletedAt, createdAt, id])
+  @@index([deletedAt, position])
+  @@unique([userId, clientMessageId])
 }

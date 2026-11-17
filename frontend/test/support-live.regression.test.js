@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { hookHarness, nodes, textOf } from './helpers/hooks.js';
 import { mergeMessages, mergeThread, SUPPORT_READ_EVENT } from '../src/utils/support.js';
+import { messageAttempt } from '../src/utils/messageDelivery.js';
 
 const flush = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 function deferred() {
@@ -137,6 +138,8 @@ test('suggested support messages share send locking and show failures, then allo
     const props = { messages: [], mine: () => true, onSend: (body) => onSend(body), suggestions: ['Need help'] };
     const h = hookHarness('../../src/components/Conversation.jsx', {
         './Icon.jsx': { __esModule: true, default: 'Icon' },
+        '../hooks/useVisibleMessageReads.js': { __esModule: true, default() {} },
+        '../utils/messageDelivery.js': { messageAttempt },
     });
     let tree = h.render(props);
     const button = nodes(tree, (n) => n.type === 'button' && textOf(n) === 'Need help')[0];
@@ -156,7 +159,7 @@ test('suggested support messages share send locking and show failures, then allo
     h.unmount();
 });
 
-test('learner refresh notifies unread badge and POST response merges with existing replies', async () => {
+test('learner history stays unread until an explicit receipt; sends merge with replies', async () => {
     const b = browser();
     let notified = 0, load, options;
     let data = [{ id: 'admin', at: 1, fromAdmin: true }];
@@ -168,6 +171,7 @@ test('learner refresh notifies unread badge and POST response merges with existi
         '../services/api.js': { support: {
             thread: async () => data,
             send: async () => ({ id: 'sent', at: 2, fromAdmin: false }),
+            markRead: async (ids) => { assert.deepEqual(ids, ['admin']); },
         } },
         '../hooks/useMeta.js': { __esModule: true, default: () => null },
         '../hooks/usePolling.js': { __esModule: true, default: (loader, opts) => {
@@ -180,6 +184,8 @@ test('learner refresh notifies unread badge and POST response merges with existi
     }, b);
     let tree = h.render({});
     await load(new AbortController().signal);
+    assert.equal(notified, 0);
+    await nodes(tree, (n) => n.type === 'Conversation')[0].props.onRead(['admin'], new AbortController().signal);
     assert.equal(notified, 1);
     assert.equal(options.merge, mergeMessages);
     await nodes(tree, (n) => n.type === 'Conversation')[0].props.onSend('hello');

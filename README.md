@@ -57,9 +57,11 @@ npm run build      # build frontend
 
 ## Deploy (Vercel + Neon)
 
-Phòng chat chung nằm tại `/phong-chat`, dành cho tài khoản đã đăng nhập. Tin nhắn được lưu trong PostgreSQL, tự cập nhật khi đang mở phòng và có thể tải thêm lịch sử. Người gửi có thể gỡ tin của mình; quản trị viên có thể gỡ mọi tin. Tin nhắn hỗ trợ riêng được thông báo bằng bộ đếm trong website, chỉ đánh dấu đã đọc khi admin mở cuộc trò chuyện; không gửi thông báo qua email.
+Phòng chat chung nằm tại `/phong-chat`, dành cho tài khoản đã đăng nhập. Tin nhắn được lưu trong PostgreSQL, tự cập nhật khi đang mở phòng và có thể tải thêm lịch sử. Người gửi có thể gỡ tin của mình; quản trị viên có thể gỡ mọi tin. Tin nhắn hỗ trợ riêng được thông báo bằng bộ đếm trong website, không gửi thông báo qua email.
 
-Nút Tin nhắn hiển thị tổng số chưa đọc và các bộ đếm riêng cho phòng chat, hỗ trợ cá nhân và hộp thư admin. Trạng thái đọc phòng chat được lưu theo tài khoản trên máy chủ, không tính tin của chính mình hay tin đã gỡ. Tin mới chỉ được đánh dấu đã đọc khi tab đang hoạt động và người dùng xem đến cuối phòng chat; mở danh sách thông báo không đánh dấu đã đọc.
+Nút Tin nhắn hiển thị tổng số chưa đọc và các bộ đếm riêng cho phòng chat, hỗ trợ cá nhân và hộp thư admin. Trạng thái đọc được lưu theo tài khoản trên máy chủ, không tính tin của chính mình hay tin đã gỡ. Phòng chat xác nhận tới tin cuối đang xem; hỗ trợ chỉ xác nhận các tin hiện trên màn hình khi tab đang được tập trung. Mở danh sách thông báo hoặc tải lịch sử không đánh dấu đã đọc.
+
+Các lần gửi lại dùng cùng `clientMessageId` để trả về tin đã lưu thay vì tạo bản sao. Thứ tự phòng chat dùng `position` do PostgreSQL cấp sau khoá ghi và giữ khoá tới commit, bảo đảm các lần cập nhật không bỏ sót INSERT hoàn thành muộn. Giới hạn API tính theo subject của access token đã xác minh chữ ký; quyền truy cập vẫn được kiểm tra riêng ở middleware xác thực. Yêu cầu chưa đăng nhập dùng giới hạn theo IP.
 
 Bản production chạy tại **https://muonglab.vercel.app**: frontend là file tĩnh, backend chạy dạng serverless function
 (`api/index.js`), cơ sở dữ liệu PostgreSQL trên Neon (Singapore).

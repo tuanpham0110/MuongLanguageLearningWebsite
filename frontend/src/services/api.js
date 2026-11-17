@@ -369,10 +369,11 @@ export const notebook = {
 
 /* ───────────── Support (learner ↔ admin messages) ───────────── */
 export const support = {
-    /** [{ id, fromAdmin, body, at, read }] – opening it marks the admin's replies as read. */
+    /** Loading history does not mark messages read; the view acknowledges visible IDs. */
     thread: (signal) => get('/me/support', { signal }),
     unread: (signal) => get('/me/support/unread', { signal }),
-    send: (body) => post('/me/support', { body }),
+    markRead: (messageIds, signal) => post('/me/support/read', { messageIds }, { signal }),
+    send: (body, clientMessageId) => post('/me/support', { body, clientMessageId }),
 };
 
 export const messages = {
@@ -389,7 +390,7 @@ export const community = {
         if (since != null) query.set('since', since);
         return get(`/community/messages?${query}`, { signal });
     },
-    send: (body) => post('/community/messages', { body }),
+    send: (body, clientMessageId) => post('/community/messages', { body, clientMessageId }),
     remove: (id) => del(`/community/messages/${encodeURIComponent(id)}`),
 };
 
@@ -408,7 +409,8 @@ export const admin = {
     threads: (signal) => get('/admin/support', { signal }),
     unread: (signal) => get('/admin/support/unread', { signal }),
     thread: (userId, signal) => get(`/admin/support/${userId}`, { signal }),
-    reply: (userId, body) => post(`/admin/support/${userId}`, { body }),
+    markRead: (userId, messageIds, signal) => post(`/admin/support/${userId}/read`, { messageIds }, { signal }),
+    reply: (userId, body, clientMessageId) => post(`/admin/support/${userId}`, { body, clientMessageId }),
 };
 
 /* ───────────── Content management (admin) ───────────── */

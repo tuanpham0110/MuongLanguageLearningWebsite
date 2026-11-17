@@ -1,9 +1,11 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, * as rateLimitApi from 'express-rate-limit';
 import { env } from '../config/env.js';
 import { PostgresRateLimitStore } from './rateLimitStore.js';
+import { verifyToken } from '../lib/jwt.js';
 
 const message = (text) => ({ message: text, code: 'rate-limited' });
 const sharedStore = (prefix) => env.isProd ? { store: new PostgresRateLimitStore(prefix), passOnStoreError: false } : {};
+const ipKeyGenerator = rateLimitApi.ipKeyGenerator ?? ((ip) => ip);
 
 /** Login / register / OTP – slows down brute force. */
 export const authLimiter = rateLimit({
@@ -15,11 +17,25 @@ export const authLimiter = rateLimit({
     message: message('Bạn thao tác quá nhiều lần. Vui lòng thử lại sau ít phút.'),
 });
 
-/** General API ceiling per IP. */
+/** Signed access tokens share a budget per account, not per classroom/Wi-Fi.
+ * This identifies a rate bucket only; protected routes still validate current credentials.
+ */
+export function apiRateKey(req) {
+    const header = req.headers.authorization ?? '';
+    if (header.startsWith('Bearer ')) {
+        try {
+            const payload = verifyToken(header.slice(7), 'access');
+            if (typeof payload.sub === 'string' && payload.sub.length > 0) return `user:${payload.sub}`;
+        } catch { /* Untrusted/expired tokens remain in the anonymous IP bucket. */ }
+    }
+    return `ip:${ipKeyGenerator(req.ip)}`;
+}
+
 export const apiLimiter = rateLimit({
     ...sharedStore('api'),
     windowMs: 60 * 1000,
     limit: 300,
+    keyGenerator: apiRateKey,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     message: message('Quá nhiều yêu cầu. Vui lòng chậm lại một chút.'),

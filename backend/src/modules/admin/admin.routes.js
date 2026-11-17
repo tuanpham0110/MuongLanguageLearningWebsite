@@ -13,9 +13,10 @@ import { supportService } from '../support/support.service.js';
 import { getContent } from '../content/content.service.js';
 import { cmsRoutes } from '../cms/cms.routes.js';
 import { itemLabel, lessonItemIds } from '../learning/rules.js';
+import { clientMessageId, readMessagesBody } from '../messages/delivery.js';
 
 const userId = z.string().min(1).max(60);
-const message = z.object({ body: z.string({ error: 'Vui lòng nhập nội dung.' }).trim().min(1, 'Vui lòng nhập nội dung.').max(2000, 'Tin nhắn tối đa 2000 ký tự.') });
+const message = z.object({ body: z.string({ error: 'Vui lòng nhập nội dung.' }).trim().min(1, 'Vui lòng nhập nội dung.').max(2000, 'Tin nhắn tối đa 2000 ký tự.'), clientMessageId });
 
 export const adminRoutes = Router();
 adminRoutes.use(requireAuth, requireAdmin);
@@ -195,4 +196,8 @@ adminRoutes.get(
 adminRoutes.get('/support', ah(async (_req, res) => res.json(await supportService.threads())));
 adminRoutes.get('/support/unread', ah(async (_req, res) => res.json({ unread: await supportService.adminUnread() })));
 adminRoutes.get('/support/:id', ah(async (req, res) => res.json(await supportService.adminThread(parse(userId, req.params.id)))));
-adminRoutes.post('/support/:id', ah(async (req, res) => res.status(201).json(await supportService.reply(parse(userId, req.params.id), parse(message, req.body).body))));
+adminRoutes.post('/support/:id/read', ah(async (req, res) => res.json(await supportService.adminMarkRead(parse(userId, req.params.id), parse(readMessagesBody, req.body).messageIds))));
+adminRoutes.post('/support/:id', ah(async (req, res) => {
+    const input = parse(message, req.body);
+    res.status(201).json(await supportService.reply(parse(userId, req.params.id), input.body, input.clientMessageId, req.user.id));
+}));

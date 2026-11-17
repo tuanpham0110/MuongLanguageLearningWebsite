@@ -145,11 +145,14 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
         const learner = await supportService.thread(userId);
         assert.equal(learner.length, 310);
         assert.equal(learner[309].body, 'owned-message-309');
+        assert.equal(await prisma.supportMessage.count({ where: { userId, fromAdmin: true, readAt: null } }), 155);
+        await supportService.markRead(userId, learner.filter((m) => m.fromAdmin).map((m) => m.id));
         assert.equal(await prisma.supportMessage.count({ where: { userId, fromAdmin: true, readAt: null } }), 0);
         assert.equal(await prisma.supportMessage.count({ where: { userId, fromAdmin: false, readAt: null } }), 155);
         const admin = await supportService.adminThread(userId);
         assert.equal(admin.messages.length, 310);
         assert.equal(admin.messages[309].body, 'owned-message-309');
+        await supportService.adminMarkRead(userId, admin.messages.filter((m) => !m.fromAdmin).map((m) => m.id));
         assert.equal(await prisma.supportMessage.count({ where: { userId, readAt: null } }), 0);
         assert.equal(await prisma.supportMessage.count({ where: { userId: other.id, readAt: null } }), 2);
 
@@ -174,6 +177,8 @@ if (process.env.RUN_DB_TESTS !== 'true' || !dedicatedTestDatabase(process.env.TE
                 };
             } }));
             const result = fromAdmin ? await service.thread(userId) : (await service.adminThread(userId)).messages;
+            if (fromAdmin) await service.markRead(userId, result.map((m) => m.id));
+            else await service.adminMarkRead(userId, result.map((m) => m.id));
             assert.equal(result.some((m) => m.id === late.id), false);
             assert.equal(markedIds.includes(late.id), false);
             assert.equal((await prisma.supportMessage.findUniqueOrThrow({ where: { id: late.id } })).readAt, null);

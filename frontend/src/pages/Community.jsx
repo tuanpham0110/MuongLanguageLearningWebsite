@@ -10,6 +10,7 @@ import { isCommunityUnread, mergeCommunity, mergeCommunityMessages } from '../ut
 import useCommunityRead from '../hooks/useCommunityRead.js';
 import { OPEN_COMMUNITY_EVENT, useMessageNotifications } from '../context/MessageNotificationsContext.jsx';
 import { UnreadBadge } from '../components/MessageCenter.jsx';
+import { messageAttempt } from '../utils/messageDelivery.js';
 
 const dateOf = (at) => new Date(at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 const timeOf = (at) => new Date(at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -23,6 +24,7 @@ export default function Community() {
     const listRef = useRef(null);
     const inputRef = useRef(null);
     const sendLock = useRef(false);
+    const attemptRef = useRef(null);
     const nearBottom = useRef(true);
     const olderScroll = useRef(null);
     const historyController = useRef(null);
@@ -93,8 +95,10 @@ export default function Community() {
         sendLock.current = true;
         setSending(true);
         setSendError('');
+        attemptRef.current = messageAttempt(attemptRef.current, body);
         try {
-            const message = await community.send(body);
+            const message = await community.send(body, attemptRef.current.clientMessageId);
+            attemptRef.current = null;
             nearBottom.current = true;
             setData((current) => ({ ...current, messages: mergeCommunityMessages(current?.messages, [message]) }));
             setText('');

@@ -10,7 +10,7 @@ export function mergeCommunityMessages(previous = [], incoming = [], removedIds 
         const message = messages.get(id);
         if (message) messages.set(id, { ...message, deleted: true, body: '' });
     }
-    return [...messages.values()].sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
+    return [...messages.values()].sort((a, b) => (a.position != null && b.position != null ? a.position - b.position : a.at - b.at) || a.id.localeCompare(b.id));
 }
 
 export function mergeCommunity(previous, incoming) {
@@ -23,5 +23,6 @@ export function mergeCommunity(previous, incoming) {
 }
 
 export function isCommunityUnread(message, lastRead, viewerId) {
+    if (message.position != null && lastRead?.position != null) return !message.deleted && message.author.id !== viewerId && message.position > lastRead.position;
     return !message.deleted && message.author.id !== viewerId && (!lastRead || message.at > lastRead.at || (message.at === lastRead.at && message.id > lastRead.id));
 }

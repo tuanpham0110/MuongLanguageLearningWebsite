@@ -1801,6 +1801,15 @@ a.user-menu__item {
     padding: var(--s-4);
     border-top: 1px solid var(--line);
 }
+.admin > .page-head > .segmented {
+    max-width: 100%;
+    flex-wrap: wrap;
+    border-radius: var(--r-lg);
+}
+.admin > .page-head > .segmented button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
 .adm-inbox {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);

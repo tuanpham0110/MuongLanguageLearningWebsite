@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { isCommunityUnread, mergeCommunity, mergeCommunityMessages } from '../src/utils/community.js';
 import { hookHarness, nodes } from './helpers/hooks.js';
+import { messageAttempt } from '../src/utils/messageDelivery.js';
 
 const message = (id, at, body = id) => ({ id, at, body, deleted: false, author: { id: 'user1', name: 'Người học', role: 'user' } });
 
@@ -46,6 +47,7 @@ test('failed chat sends keep the draft and duplicate submits share one in-flight
         '../context/MessageNotificationsContext.jsx': { useMessageNotifications: () => ({ community: 0, support: 0 }), OPEN_COMMUNITY_EVENT: 'open-room' },
         '../components/MessageCenter.jsx': { UnreadBadge: 'UnreadBadge' },
         '../utils/community.js': { isCommunityUnread, mergeCommunity, mergeCommunityMessages },
+        '../utils/messageDelivery.js': { messageAttempt },
     });
     let tree = h.render();
     nodes(tree, (node) => node.type === 'textarea')[0].props.onChange({ target: { value: 'Xin chào mọi người' } });
@@ -69,4 +71,11 @@ test('the unread divider uses the saved boundary and excludes own or removed mes
     assert.equal(isCommunityUnread(message('c', 2), boundary, 'another'), true);
     assert.equal(isCommunityUnread(message('c', 2), boundary, 'user1'), false);
     assert.equal(isCommunityUnread({ ...message('c', 2), deleted: true }, boundary, 'another'), false);
+});
+
+test('chat display and unread boundaries follow committed positions, not wall-clock timestamps', () => {
+    const a = { ...message('a', 2000), position: 10 };
+    const b = { ...message('b', 1000), position: 12 };
+    assert.deepEqual(mergeCommunityMessages([b], [a]).map((m) => m.id), ['a', 'b']);
+    assert.equal(isCommunityUnread(b, { position: 10, at: 2000, id: 'a' }, 'another'), true);
 });

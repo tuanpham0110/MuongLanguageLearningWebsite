@@ -19,7 +19,7 @@ test('legacy shadowing guidance is corrected without reseeding user database', (
     assert.match(SHADOW_GUIDANCE, /không đánh giá phát âm/);
 });
 
-for (const admin of [false, true]) test(`support ${admin ? 'admin' : 'learner'} can read beyond 300 messages and only marks loaded IDs`, async () => {
+for (const admin of [false, true]) test(`support ${admin ? 'admin' : 'learner'} can load history without reading it and only acknowledges visible IDs`, async () => {
     const rows = Array.from({ length: 305 }, (_, i) => ({ id: String(i), userId: 'u', fromAdmin: !admin, body: String(i), createdAt: new Date(i), readAt: null }));
     let mark;
     const db = {
@@ -36,7 +36,12 @@ for (const admin of [false, true]) test(`support ${admin ? 'admin' : 'learner'} 
     const result = admin ? (await service.adminThread('u')).messages : await service.thread('u');
     assert.equal(result.length, 305);
     assert.equal(result.at(-1).body, '304');
-    assert.equal(mark.where.id.in.length, 305);
+    assert.equal(mark, undefined);
+    const visible = rows.slice(2, 7).map((message) => message.id);
+    if (admin) await service.adminMarkRead('u', visible);
+    else await service.markRead('u', visible);
+    assert.deepEqual(mark.where.id.in, visible);
+    assert.equal(mark.where.readAt, null);
     assert.equal(mark.where.userId, 'u');
     assert.equal(mark.where.fromAdmin, !admin);
 });

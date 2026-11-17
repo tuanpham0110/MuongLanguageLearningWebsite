@@ -388,20 +388,21 @@ function Inbox({ openId, onOpen, onRead }) {
 }
 
 function InboxThread({ userId, onBack, onRefresh, onRead }) {
-    const { data: thread, error, reload, setData } = usePolling(async (signal) => {
-        const result = await admin.thread(userId, signal);
-        if (!signal.aborted && result.messages.some((m) => !m.fromAdmin && !m.read)) {
-            onRefresh();
-            onRead();
-        }
-        return result;
-    }, { merge: mergeThread });
+    const { data: thread, error, reload, setData } = usePolling((signal) => admin.thread(userId, signal), { merge: mergeThread });
 
-    async function send(body) {
-        const message = await admin.reply(userId, body);
+    async function send(body, clientMessageId) {
+        const message = await admin.reply(userId, body, clientMessageId);
         setData((t) => ({ ...t, messages: mergeMessages(t?.messages, [message]) }));
         reload();
         onRefresh();
+    }
+    async function markRead(messageIds, signal) {
+        await admin.markRead(userId, messageIds, signal);
+        if (signal.aborted) return;
+        const read = new Set(messageIds);
+        setData((current) => ({ ...current, messages: current.messages.map((message) => read.has(message.id) ? { ...message, read: true } : message) }));
+        onRefresh();
+        onRead();
     }
 
     if (error && !thread) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
@@ -425,6 +426,7 @@ function InboxThread({ userId, onBack, onRefresh, onRead }) {
             messages={thread.messages}
             mine={(m) => m.fromAdmin}
             onSend={send}
+            onRead={markRead}
             otherLabel={thread.user.name}
             placeholder="Nhập câu trả lời…"
             empty={<p>Chưa có tin nhắn nào. Bạn có thể nhắn trước cho người học này.</p>}

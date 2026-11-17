@@ -305,15 +305,19 @@ describe('admin + support inbox', () => {
         assert.ok((await call(adminToken)('GET', '/admin/overview')).data.unreadMessages >= 1);
     });
 
-    test('opening the thread marks it read; the reply reaches the learner', async () => {
+    test('only explicit visible-message receipts clear unread badges in either support view', async () => {
         const th = await call(adminToken)('GET', `/admin/support/${learnerId}`);
         assert.equal(th.data.messages.length, 1);
+        assert.equal((await call(adminToken)('GET', '/admin/support')).data.find((x) => x.user.id === learnerId).unread, 1);
+        assert.equal((await call(adminToken)('POST', `/admin/support/${learnerId}/read`, { messageIds: th.data.messages.map((m) => m.id) })).status, 200);
         assert.equal((await call(adminToken)('GET', '/admin/support')).data.find((x) => x.user.id === learnerId).unread, 0);
         assert.equal((await call(adminToken)('POST', `/admin/support/${learnerId}`, { body: 'Bạn thử tải lại trang giúp mình nhé.' })).status, 201);
         assert.equal((await api('GET', '/me/overview')).data.support.unread, 1);
         const mine = await api('GET', '/me/support');
         assert.deepEqual(mine.data.map((x) => x.fromAdmin), [false, true]);
-        assert.equal((await api('GET', '/me/support/unread')).data.unread, 0, 'reading the thread clears the badge');
+        assert.equal((await api('GET', '/me/support/unread')).data.unread, 1);
+        assert.equal((await api('POST', '/me/support/read', { messageIds: mine.data.filter((m) => m.fromAdmin).map((m) => m.id) })).status, 200);
+        assert.equal((await api('GET', '/me/support/unread')).data.unread, 0, 'visible-message receipts clear the badge');
     });
 
     test('admin: user list, search, roles and deletion rules', async () => {

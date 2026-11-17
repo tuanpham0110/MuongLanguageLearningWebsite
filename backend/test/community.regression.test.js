@@ -20,13 +20,15 @@ const { createMessageNotificationsService } = await import('../src/modules/messa
 const learner = { id: 'learner', name: 'Người học', role: 'user', email: 'private@example.test' };
 const another = { id: 'another', name: 'Bạn học', role: 'user', email: 'other@example.test' };
 const admin = { id: 'admin', name: 'Quản trị', role: 'admin' };
-const row = (index, at = 1000) => ({ id: `m${String(index).padStart(4, '0')}`, userId: learner.id, user: learner, body: `Tin ${index}`, createdAt: new Date(at), deletedAt: null });
+const row = (index, at = 1000) => ({ id: `m${String(index).padStart(4, '0')}`, position: index + 1, userId: learner.id, user: learner, body: `Tin ${index}`, createdAt: new Date(at), deletedAt: null });
 
 function database(rows = []) {
-    const states = new Map([learner, another, admin].map((user) => [user.id, { communityReadAt: null, communityReadId: null }]));
+    const states = new Map([learner, another, admin].map((user) => [user.id, { communityReadAt: null, communityReadId: null, communityReadPosition: 0 }]));
     const matches = (message, where) => {
         if (where.userId?.not === message.userId) return false;
         if (where.deletedAt === null && message.deletedAt !== null) return false;
+        if (where.position?.gt != null && message.position <= where.position.gt) return false;
+        if (where.position?.lt != null && message.position >= where.position.lt) return false;
         if (where.OR) return where.OR.some((condition) => {
             const at = condition.createdAt;
             if (at instanceof Date && message.createdAt.getTime() !== at.getTime()) return false;
@@ -44,7 +46,7 @@ function database(rows = []) {
             findUnique: async ({ where }) => states.get(where.id) ?? null,
             updateMany: async ({ where, data }) => {
                 const state = states.get(where.id);
-                if (state && (!state.communityReadAt || state.communityReadAt < data.communityReadAt || (+state.communityReadAt === +data.communityReadAt && state.communityReadId < data.communityReadId))) Object.assign(state, data);
+                if (state && state.communityReadPosition < data.communityReadPosition) Object.assign(state, data);
                 return { count: state ? 1 : 0 };
             },
         },
@@ -52,12 +54,13 @@ function database(rows = []) {
             count: async ({ where }) => rows.filter((message) => matches(message, where)).length,
             findMany: async ({ where, orderBy, take, select }) => {
                 let result = rows.filter((message) => matches(message, where));
-                if (orderBy) result.sort((a, b) => (a.createdAt - b.createdAt || a.id.localeCompare(b.id)) * (orderBy[0].createdAt === 'desc' ? -1 : 1));
+                if (orderBy) result.sort((a, b) => (a.position - b.position) * (orderBy.position === 'desc' ? -1 : 1));
                 result = result.slice(0, take);
                 return result.map((message) => select ? { id: message.id } : { ...message });
             },
-            findUnique: async ({ where }) => rows.find((message) => message.id === where.id) ?? null,
+            findUnique: async ({ where }) => rows.find((message) => where.id ? message.id === where.id : message.userId === where.userId_clientMessageId.userId && message.clientMessageId === where.userId_clientMessageId.clientMessageId) ?? null,
             create: async ({ data }) => {
+                if (data.clientMessageId && rows.some((message) => message.userId === data.userId && message.clientMessageId === data.clientMessageId)) throw Object.assign(new Error('duplicate'), { code: 'P2002' });
                 const message = { ...row(rows.length, Date.now()), ...data, user: [learner, another, admin].find((user) => user.id === data.userId) };
                 rows.push(message);
                 return message;
@@ -115,7 +118,7 @@ test('incremental chat catches up on more than one page of messages between poll
     } while (after);
     assert.equal(messages.length, 125);
     assert.equal(new Set(messages.map((message) => message.id)).size, 125);
-    assert.deepEqual((await service.list({ after: '2000_m0125' })).messages, []);
+    assert.deepEqual((await service.list({ after: 'p126' })).messages, []);
 });
 
 test('an initially empty room keeps a cursor and catches every message in a burst', async () => {
@@ -128,6 +131,35 @@ test('an initially empty room keeps a cursor and catches every message in a burs
     const first = await service.list({ after: initial.latestCursor });
     const rest = await service.list({ after: first.nextAfter });
     assert.equal(first.messages.length + rest.messages.length, 60);
+});
+
+test('late inserts are delivered even when their timestamps precede the last snapshot', async () => {
+    const rows = [];
+    const service = createCommunityService(database(rows));
+    const initial = await service.list();
+    rows.push(row(0, initial.syncedAt - 10));
+    const first = await service.list({ after: initial.latestCursor });
+    assert.equal(first.messages[0].id, 'm0000');
+    rows.push(row(1, initial.syncedAt - 5000));
+    const second = await service.list({ after: first.latestCursor });
+    assert.equal(second.messages[0].id, 'm0001');
+    assert.equal((await service.markRead(another.id, 'm0000')).unread, 1);
+    assert.equal((await service.markRead(another.id, 'm0001')).unread, 0);
+});
+
+test('retries and concurrent submissions return one community message without restoring deleted text', async () => {
+    const rows = [];
+    const service = createCommunityService(database(rows));
+    const key = 'e42445aa-115a-46d4-827a-56c42da16b42';
+    const sent = await Promise.all(Array.from({ length: 8 }, () => service.send(learner, 'Xin chào', key)));
+    assert.equal(rows.length, 1);
+    assert.equal(new Set(sent.map((message) => message.id)).size, 1);
+    await assert.rejects(service.send(learner, 'Nội dung khác', key), { status: 409 });
+    await service.remove(admin, sent[0].id);
+    assert.equal((await service.send(learner, 'Xin chào', key)).deleted, true);
+    assert.equal(rows.length, 1);
+    await service.send(another, 'Xin chào', key);
+    assert.equal(rows.length, 2, 'different senders have independent keys');
 });
 
 test('only the sender or an admin can remove a message; deletion removes stored text and reaches older history', async () => {
