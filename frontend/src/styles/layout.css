@@ -171,9 +171,12 @@
     min-height: 100vh;
 }
 .sidebar {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    width: var(--sidebar-w);
     height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     padding: var(--s-6) var(--s-4);
@@ -235,6 +238,7 @@
 }
 
 .app__main {
+    grid-column: 2;
     min-width: 0;
     display: flex;
     flex-direction: column;
@@ -385,6 +389,9 @@
 @media (max-width: 1024px) {
     .app {
         grid-template-columns: minmax(0, 1fr);
+    }
+    .app__main {
+        grid-column: 1;
     }
     .sidebar {
         position: fixed;

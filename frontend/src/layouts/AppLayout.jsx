@@ -148,11 +148,16 @@ export default function AppLayout() {
                 </nav>
 
                 {focus && (
-                    <Link to={`/hoc/${focus.id}`} className="side-card">
-                        <span className="side-card__label">
-                            <Icon name="play" size={12} /> {focus.label}
+                    <Link to={`/hoc/${focus.id}`} className="side-card" title={focus.label}>
+                        <span className="side-card__head">
+                            <span className="side-card__label">
+                                <Icon name="play" size={12} /> {focus.pct != null ? 'Đang học' : 'Tiếp theo'}
+                            </span>
+                            <span className="side-card__cta">
+                                {focus.cta} <Icon name="arrow-right" size={14} />
+                            </span>
                         </span>
-                        <strong>
+                        <strong title={`Bài ${focus.id}: ${focus.title}`}>
                             Bài {focus.id}: {focus.title}
                         </strong>
                         {focus.pct != null && (
@@ -160,9 +165,6 @@ export default function AppLayout() {
                                 <span style={{ width: `${Math.max(4, focus.pct)}%` }} />
                             </span>
                         )}
-                        <span className="side-card__cta">
-                            {focus.cta} <Icon name="arrow-right" size={14} />
-                        </span>
                     </Link>
                 )}
 
