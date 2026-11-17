@@ -16,6 +16,7 @@ import './styles/app.css';
 import './styles/learn.css';
 import './styles/auth.css';
 import './styles/features.css';
+import './styles/community.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

@@ -48,7 +48,7 @@ const schema = z.object({
     // "Đăng nhập bằng Microsoft" – Application (client) ID of an Entra ID app registration (SPA platform)
     MICROSOFT_CLIENT_ID: z.string().optional(),
 
-    // shown on the contact / legal pages and receives "new support message" notices
+    // Public contact address only; support notifications stay in the admin inbox.
     SUPPORT_EMAIL: z.string().default('phamductuan01102005@gmail.com'),
 });
 

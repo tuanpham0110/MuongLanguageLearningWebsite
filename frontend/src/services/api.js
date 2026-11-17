@@ -375,6 +375,19 @@ export const support = {
     send: (body) => post('/me/support', { body }),
 };
 
+/* ───────────── Shared learning room ───────────── */
+export const community = {
+    messages: ({ before, after, since, signal } = {}) => {
+        const query = new URLSearchParams();
+        if (before) query.set('before', before);
+        if (after) query.set('after', after);
+        if (since != null) query.set('since', since);
+        return get(`/community/messages?${query}`, { signal });
+    },
+    send: (body) => post('/community/messages', { body }),
+    remove: (id) => del(`/community/messages/${encodeURIComponent(id)}`),
+};
+
 /* ───────────── Admin area (role = admin) ───────────── */
 export const admin = {
     overview: () => get('/admin/overview'),
@@ -388,6 +401,7 @@ export const admin = {
     setRole: (id, role) => patch(`/admin/users/${id}`, { role }),
     deleteUser: (id) => del(`/admin/users/${id}`),
     threads: (signal) => get('/admin/support', { signal }),
+    unread: (signal) => get('/admin/support/unread', { signal }),
     thread: (userId, signal) => get(`/admin/support/${userId}`, { signal }),
     reply: (userId, body) => post(`/admin/support/${userId}`, { body }),
 };

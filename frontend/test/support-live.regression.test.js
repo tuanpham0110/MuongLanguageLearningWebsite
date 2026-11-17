@@ -220,7 +220,7 @@ test('admin selection remounts each conversation; a late send cannot change the 
     const states = new Map();
     let selected = 'A';
     const h = hookHarness('../../src/pages/Admin.jsx', {
-        'react-router-dom': { Navigate: 'Navigate', useSearchParams: () => [new URLSearchParams({ tab: 'support', user: selected }), () => {}] },
+        'react-router-dom': { Navigate: 'Navigate', useOutletContext: () => ({ adminUnread: 0, reloadAdminUnread() {} }), useSearchParams: () => [new URLSearchParams({ tab: 'support', user: selected }), () => {}] },
         '../components/ui.jsx': { Button: 'Button', EmptyState: 'EmptyState', ErrorState: 'ErrorState', Skeleton: 'Skeleton', TextField: 'TextField' },
         '../components/Icon.jsx': { __esModule: true, default: 'Icon' },
         '../components/Modal.jsx': { __esModule: true, default: 'Modal' },

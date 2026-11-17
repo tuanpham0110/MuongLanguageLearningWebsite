@@ -13,6 +13,7 @@ import { aiRoutes } from './modules/ai/ai.routes.js';
 import { speechRoutes } from './modules/speech/speech.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { publicMediaRoutes } from './modules/cms/media.routes.js';
+import { communityRoutes } from './modules/community/community.routes.js';
 
 export function createApp() {
     const app = express();
@@ -74,6 +75,7 @@ export function createApp() {
     app.use('/api/speech', speechRoutes);
     app.use('/api/admin', adminRoutes);
     app.use('/api/media', publicMediaRoutes);
+    app.use('/api/community', communityRoutes);
 
     app.use('/api', notFoundRoute);
     app.use(errorHandler);

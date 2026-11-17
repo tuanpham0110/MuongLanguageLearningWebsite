@@ -1,6 +1,12 @@
 // A single, consistent stroke icon set (24px grid, 1.75 stroke, round joins)
 // matching the outline icons used in the Figma file.
 const paths = {
+    chat: (
+        <>
+            <path d="M20 11.5a8.5 8.5 0 0 1-8.5 8.5 10 10 0 0 1-4-.8L3 21l1.8-4.5a10 10 0 0 1-.8-4A8.5 8.5 0 0 1 12.5 4 8.5 8.5 0 0 1 21 12" />
+            <path d="M8 10h8M8 14h5" />
+        </>
+    ),
     home: (
         <>
             <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" />

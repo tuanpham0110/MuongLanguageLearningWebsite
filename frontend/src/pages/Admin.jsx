@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { Navigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { Button, EmptyState, ErrorState, Skeleton, TextField } from '../components/ui.jsx';
 import Icon from '../components/Icon.jsx';
 import Modal from '../components/Modal.jsx';
@@ -30,7 +30,7 @@ function initials(name = '') {
 }
 
 /* ───────────── Overview ───────────── */
-function Overview({ onOpenSupport }) {
+function Overview({ onOpenSupport, unread }) {
     const { data, error, loading, reload } = useAsync(() => admin.overview(), []);
     if (error) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
     if (loading && !data) return <Skeleton h={260} r={18} />;
@@ -39,7 +39,7 @@ function Overview({ onOpenSupport }) {
         { icon: 'user', value: data.users, label: 'tài khoản', sub: `+${data.newUsers} trong 7 ngày` },
         { icon: 'flame', value: data.activeToday, label: 'người học hôm nay', sub: 'có luyện ít nhất 1 câu', tone: 'clay' },
         { icon: 'flag', value: data.attempts, label: 'lượt làm bài', sub: data.passRate == null ? 'chưa có dữ liệu' : `${data.passRate}% đạt · ${data.lessonsPassed} bài đã qua` },
-        { icon: 'mail', value: data.unreadMessages, label: 'tin nhắn chưa đọc', sub: 'từ người học', tone: 'river', action: onOpenSupport },
+        { icon: 'mail', value: unread, label: 'tin nhắn chưa đọc', sub: 'từ người học', tone: 'river', action: onOpenSupport },
     ];
     return (
         <>
@@ -333,7 +333,7 @@ function Users({ onMessage }) {
 }
 
 /* ───────────── Support inbox ───────────── */
-function Inbox({ openId, onOpen }) {
+function Inbox({ openId, onOpen, onRead }) {
     const { data: threads, error, loading, reload } = usePolling((signal) => admin.threads(signal), { interval: 5000 });
 
     if (error && !threads) return <ErrorState onRetry={reload}>{error.message}</ErrorState>;
@@ -380,17 +380,20 @@ function Inbox({ openId, onOpen }) {
                         Tin nhắn chưa đọc được xếp lên đầu danh sách.
                     </EmptyState>
                 ) : (
-                    <InboxThread key={openId} userId={openId} onBack={() => onOpen(null)} onRefresh={reload} />
+                    <InboxThread key={openId} userId={openId} onBack={() => onOpen(null)} onRefresh={reload} onRead={onRead} />
                 )}
             </section>
         </div>
     );
 }
 
-function InboxThread({ userId, onBack, onRefresh }) {
+function InboxThread({ userId, onBack, onRefresh, onRead }) {
     const { data: thread, error, reload, setData } = usePolling(async (signal) => {
         const result = await admin.thread(userId, signal);
-        if (!signal.aborted && result.messages.some((m) => !m.fromAdmin && !m.read)) onRefresh();
+        if (!signal.aborted && result.messages.some((m) => !m.fromAdmin && !m.read)) {
+            onRefresh();
+            onRead();
+        }
         return result;
     }, { merge: mergeThread });
 
@@ -431,6 +434,7 @@ function InboxThread({ userId, onBack, onRefresh }) {
 
 export default function Admin() {
     const { user } = useAuth();
+    const { adminUnread = 0, reloadAdminUnread } = useOutletContext() ?? {};
     const [params, setParams] = useSearchParams();
     if (user?.role !== 'admin') return <Navigate to="/tong-quan" replace />;
 
@@ -447,15 +451,23 @@ export default function Admin() {
                     {TABS.map((t) => (
                         <button key={t.key} role="tab" aria-selected={tab === t.key} onClick={() => go(t.key)}>
                             {t.label}
+                            {t.key === 'support' && adminUnread > 0 && <span className="count">{adminUnread > 99 ? '99+' : adminUnread}</span>}
                         </button>
                     ))}
                 </div>
             </header>
-            {tab === 'overview' && <Overview onOpenSupport={() => go('support')} />}
+            {adminUnread > 0 && tab !== 'support' && (
+                <div className="adm-notice" role="status">
+                    <Icon name="mail" size={22} />
+                    <div><strong>Bạn có {adminUnread} tin nhắn hỗ trợ chưa đọc</strong><p>Mở hộp thư khi thuận tiện để xem và trả lời người học.</p></div>
+                    <Button size="sm" variant="green" onClick={() => go('support')}>Xem tin nhắn</Button>
+                </div>
+            )}
+            {tab === 'overview' && <Overview onOpenSupport={() => go('support')} unread={adminUnread} />}
             {tab === 'cms' && <ContentEditor />}
             {tab === 'content' && <ContentStats />}
             {tab === 'users' && <Users onMessage={(id) => go('support', { user: id })} />}
-            {tab === 'support' && <Inbox openId={params.get('user')} onOpen={(id) => go('support', id ? { user: id } : {})} />}
+            {tab === 'support' && <Inbox openId={params.get('user')} onOpen={(id) => go('support', id ? { user: id } : {})} onRead={reloadAdminUnread} />}
         </div>
     );
 }

@@ -24,6 +24,7 @@ import Handbook from './pages/Handbook.jsx';
 import Account from './pages/Account.jsx';
 import History from './pages/History.jsx';
 import Support from './pages/Support.jsx';
+import Community from './pages/Community.jsx';
 import Admin from './pages/Admin.jsx';
 import { Privacy, Terms } from './pages/Legal.jsx';
 import NotFound from './pages/NotFound.jsx';
@@ -120,6 +121,7 @@ export default function App() {
                     <Route path="tai-khoan" element={<Account />} />
                     <Route path="lich-su" element={<History />} />
                     <Route path="ho-tro" element={<Support />} />
+                    <Route path="phong-chat" element={<Community />} />
                     <Route path="quan-tri" element={<Admin />} />
                 </Route>
 

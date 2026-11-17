@@ -51,6 +51,7 @@ model User {
   daily    DailyActivity[]
   aiUsage  AiUsage[]
   support  SupportMessage[]
+  communityMessages CommunityMessage[]
 }
 
 model OtpCode {
@@ -288,4 +289,18 @@ model SupportMessage {
 
   @@index([userId, createdAt])
   @@index([fromAdmin, readAt])
+}
+
+/// One shared learning room for signed-in users. Removed messages retain a tombstone.
+model CommunityMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  deletedAt DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt, id])
+  @@index([deletedAt])
+  @@index([userId])
 }

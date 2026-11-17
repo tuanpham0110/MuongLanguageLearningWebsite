@@ -46,3 +46,14 @@ export const supportLimiter = rateLimit({
     keyGenerator: (req) => req.user?.id ?? req.ip,
     message: message('Bạn gửi tin hơi nhanh. Vui lòng đợi ít phút rồi gửi tiếp.'),
 });
+
+/** Shared learning room – separate from private support and keyed to the signed-in user. */
+export const communityLimiter = rateLimit({
+    ...sharedStore('community'),
+    windowMs: 60 * 1000,
+    limit: 20,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => req.user.id,
+    message: message('Bạn gửi tin hơi nhanh. Đợi một chút rồi gửi tiếp nhé.'),
+});

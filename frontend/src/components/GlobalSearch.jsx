@@ -28,6 +28,7 @@ const FEATURES = [
     { title: 'Lịch sử học', sub: 'Điểm số từng lần làm bài', to: '/lich-su', icon: 'calendar', keys: 'lich su ket qua diem hoat dong' },
     { title: 'Tài khoản', sub: 'Hồ sơ, mục tiêu ngày, đổi mật khẩu', to: '/tai-khoan', icon: 'user', keys: 'tai khoan ho so mat khau cai dat dang xuat' },
     { title: 'Hỗ trợ', sub: 'Nhắn tin cho quản trị viên', to: '/ho-tro', icon: 'mail', keys: 'ho tro lien he admin quan tri gop y bao loi' },
+    { title: 'Phòng chat chung', sub: 'Trao đổi kiến thức cùng cộng đồng người học', to: '/phong-chat', icon: 'chat', keys: 'cong dong tro chuyen hoi dap chat nhan tin' },
     { title: 'Trợ lý AI Ếch Mường', sub: 'Hỏi đáp về từ vựng, cách học', action: 'chat', icon: 'sparkle', keys: 'ai chatbot hoi dap tro ly' },
     { title: 'Học thử 5 phút', sub: 'Bài học thử không lưu tiến độ', to: '/hoc-thu', icon: 'play', keys: 'hoc thu demo' },
 ];

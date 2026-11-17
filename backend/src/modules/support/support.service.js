@@ -5,8 +5,6 @@
  */
 import { prisma } from '../../lib/prisma.js';
 import { notFound } from '../../lib/errors.js';
-import { sendSupportNotice } from '../../lib/mailer.js';
-import { logger } from '../../lib/logger.js';
 
 const toMessage = (m) => ({ id: m.id, fromAdmin: m.fromAdmin, body: m.body, at: m.createdAt.getTime(), read: !!m.readAt });
 
@@ -26,8 +24,6 @@ export function createSupportService(db = prisma) {
 
         async send(user, body) {
             const m = await db.supportMessage.create({ data: { userId: user.id, fromAdmin: false, body } });
-            // best effort: the message is already saved, a mail hiccup must not fail the request
-            await sendSupportNotice({ name: user.name, email: user.email, body }).catch((e) => logger.warn('Support notice mail failed:', e.message));
             return toMessage(m);
         },
 

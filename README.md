@@ -53,9 +53,11 @@ npm run build      # build frontend
 | Đăng nhập bằng Microsoft | `MICROSOFT_CLIENT_ID` | App registration trên entra.microsoft.com (nền tảng *Single-page application*, redirect URI = địa chỉ frontend). Để trống thì nút không hiện |
 | Đối chiếu bản ghi | `GEMINI_API_KEY` hoặc `SPEECH_API_URL`, `SPEECH_API_KEY` | Gemini chỉ chép lại âm thanh rồi đếm âm tiết trùng chính xác (giữ dấu); tỷ lệ này không đánh giá phát âm hay thanh điệu. `SPEECH_API_URL` gọi dịch vụ riêng, cần kiểm chứng năng lực dịch vụ với chuyên gia |
 | Quản trị viên | `npm run admin:grant -- <email>` (trong `backend/`) | Cấp vai trò admin: trang `/quan-tri` (số liệu, người dùng, hộp thư hỗ trợ). `--create "Họ Tên"` để tạo tài khoản mới, `--revoke` để gỡ |
-| Email liên hệ | `SUPPORT_EMAIL` | Hiện ở trang Hỗ trợ / pháp lý; nhận thông báo khi người học nhắn tin (cần SMTP) |
+| Email liên hệ | `SUPPORT_EMAIL` | Hiện ở trang Hỗ trợ / pháp lý. Tin nhắn hỗ trợ chỉ thông báo trong website, không gửi email |
 
 ## Deploy (Vercel + Neon)
+
+Phòng chat chung nằm tại `/phong-chat`, dành cho tài khoản đã đăng nhập. Tin nhắn được lưu trong PostgreSQL, tự cập nhật khi đang mở phòng và có thể tải thêm lịch sử. Người gửi có thể gỡ tin của mình; quản trị viên có thể gỡ mọi tin. Tin nhắn hỗ trợ riêng được thông báo bằng bộ đếm trong website, chỉ đánh dấu đã đọc khi admin mở cuộc trò chuyện; không gửi thông báo qua email.
 
 Bản production chạy tại **https://muonglab.vercel.app**: frontend là file tĩnh, backend chạy dạng serverless function
 (`api/index.js`), cơ sở dữ liệu PostgreSQL trên Neon (Singapore).

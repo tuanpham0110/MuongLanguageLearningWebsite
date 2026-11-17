@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
-import { learning, support } from '../services/api.js';
+import { admin, learning, support } from '../services/api.js';
 import Icon from '../components/Icon.jsx';
 import { Logo } from '../components/ui.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -77,10 +77,13 @@ function UserMenu() {
 }
 
 export default function AppLayout() {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
     const [open, setOpen] = useState(false);
     const [info, setInfo] = useState(null);
     const location = useLocation();
     const { data: supportUnread, reload: reloadUnread } = usePolling((signal) => support.unread(signal), { interval: 5000 });
+    const { data: adminNotifications, reload: reloadAdminUnread } = usePolling((signal) => isAdmin ? admin.unread(signal) : Promise.resolve({ unread: 0 }), { interval: 5000 });
     useEffect(() => {
         window.addEventListener(SUPPORT_READ_EVENT, reloadUnread);
         return () => window.removeEventListener(SUPPORT_READ_EVENT, reloadUnread);
@@ -98,6 +101,11 @@ export default function AppLayout() {
     }, [location.pathname]);
 
     const due = info?.review.due ?? 0;
+    const adminUnread = isAdmin ? adminNotifications?.unread ?? 0 : 0;
+    const notificationCount = isAdmin ? adminUnread : due;
+    const notificationLabel = isAdmin
+        ? adminUnread ? `${adminUnread} tin nhắn hỗ trợ chưa đọc` : 'Không có tin nhắn hỗ trợ mới'
+        : due ? `${due} câu đến hạn ôn tập` : 'Không có câu nào cần ôn';
     const badges = { due, support: supportUnread?.unread ?? info?.support?.unread ?? 0 };
     const badgeLabel = { due: 'câu đến hạn ôn', support: 'tin nhắn mới từ quản trị viên' };
     const today = info?.stats.today;
@@ -130,6 +138,13 @@ export default function AppLayout() {
                             ))}
                         </div>
                     ))}
+                    {isAdmin && (
+                        <NavLink to="/quan-tri" className="sidebar__link sidebar__admin">
+                            <Icon name="dashboard" size={20} />
+                            <span>Quản trị</span>
+                            {adminUnread > 0 && <span className="sidebar__badge" aria-label={`${adminUnread} tin nhắn hỗ trợ chưa đọc`}>{adminUnread > 99 ? '99+' : adminUnread}</span>}
+                        </NavLink>
+                    )}
                 </nav>
 
                 {focus && (
@@ -194,22 +209,22 @@ export default function AppLayout() {
                     </div>
                     <div className="topbar__right">
                         <Link
-                            to="/on-luyen"
+                            to={isAdmin ? '/quan-tri?tab=support' : '/on-luyen'}
                             className="icon-btn"
-                            aria-label={due ? `${due} câu đến hạn ôn tập` : 'Không có câu nào cần ôn'}
-                            title={due ? `${due} câu đến hạn ôn tập` : 'Không có câu nào cần ôn'}
+                            aria-label={notificationLabel}
+                            title={notificationLabel}
                         >
                             <Icon name="bell" size={20} />
-                            {due > 0 && <span className="icon-btn__count">{due > 9 ? '9+' : due}</span>}
+                            {notificationCount > 0 && <span className="icon-btn__count">{notificationCount > 99 ? '99+' : notificationCount}</span>}
                         </Link>
                         <UserMenu />
                     </div>
                 </header>
                 <main className="app__content" id="main">
-                    <Outlet />
+                    <Outlet context={{ adminUnread, reloadAdminUnread }} />
                 </main>
             </div>
-            <ChatBox />
+            <ChatBox floating={location.pathname !== '/phong-chat'} />
         </div>
     );
 }
